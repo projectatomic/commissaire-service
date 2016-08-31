@@ -17,6 +17,7 @@
 Prototype cluster service.
 """
 
+import json
 import logging
 
 from kombu import Connection, Exchange, Queue
@@ -50,10 +51,29 @@ class ClustersService(CommissaireService):
         message.ack()
         self.logger.debug('Responding to {0}'.format(
             message.properties['reply_to']))
-        response_queue = self.connection.SimpleQueue(
+
+        # Where we will respond to
+        http_response_queue = self.connection.SimpleQueue(
             message.properties['reply_to'])
-        response_queue.put('You asked for clusters', outcome='success')
-        response_queue.close()
+
+        # NOTE: action is an example. We will need to define verbs
+        #       this is just an example stub
+        storage_queue = self.connection.SimpleQueue('storage')
+        storage_queue.put(json.dumps({'action': 'list'}))
+        # storage_msg = storage_queue.get(block=True, timeout=2)
+        # storage_msg.ack()
+        # if storage_msg.properties['outcome'] is 'success':
+        #     result = storage_msg['result']
+        # else:
+        #     self.logger.warn('Unable to get list: "{}"'.format(
+        #         storage_msg.payload))
+        #    result = {'error': 'Unable to list clusters'}
+        # ---
+        result = {'clusters': ['...']}
+        http_response_queue.put(json.dumps(result), outcome='success')
+        # Close up queues
+        storage_queue.close()
+        http_response_queue.close()
 
 
 if __name__ == '__main__':
