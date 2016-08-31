@@ -1,0 +1,5 @@
+tox
+nose
+flake8
+coverage
+mock
