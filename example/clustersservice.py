@@ -47,16 +47,8 @@ class ClustersService(CommissaireService):
 
         # NOTE: action is an example. We will need to define verbs
         #       this is just an example stub
-        self.send_msg('storage', {'action': 'list'})
-        # storage_msg = storage_queue.get(block=True, timeout=2)
-        # storage_msg.ack()
-        # if storage_msg.properties['outcome'] is 'success':
-        #     result = storage_msg['result']
-        # else:
-        #     self.logger.warn('Unable to get list: "{}"'.format(
-        #         storage_msg.payload))
-        #    result = {'error': 'Unable to list clusters'}
-        # ---
+        response, outcome = self.send_request('storage', {'action': 'list'})
+        self.logger.debug('Got {} {}'.format(response, outcome))
         # Return result
         return ({'clusters': ['...']}, 'success')
 

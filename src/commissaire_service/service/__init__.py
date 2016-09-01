@@ -16,6 +16,7 @@
 Service base class.
 """
 import logging
+import uuid
 
 from kombu import Producer
 from kombu.mixins import ConsumerMixin
@@ -112,9 +113,10 @@ class CommissaireService(ConsumerMixin):
             message.delivery_tag,
             ('was' if message.acknowledged else 'was not')))
 
-    def send_msg(self, queue_name, payload, **kwargs):
+    def send_response(self, queue_name, payload, **kwargs):
         """
-        Sends a msg to a simple queue.
+        Sends a response to a simple queue. Responses are sent back to a
+        request and never should be the owner of the queue.
 
         :param queue_name: The name of the queue to use.
         :type queue_name: str
@@ -124,6 +126,29 @@ class CommissaireService(ConsumerMixin):
         :type kwargs: dict
         """
         self.logger.debug('Sending "{}" to "{}"'.format(payload, queue_name))
+        send_queue = self.connection.SimpleQueue(queue_name, **kwargs)
+
+        send_queue.put(payload)
+        self.logger.debug('Sent "{}" to "{}"'.format(payload, queue_name))
+        send_queue.close()
+
+    def send_request(self, routing_key, payload, **kwargs):
+        """
+        Sends a request to a simple queue. Requests create the initial response
+        queue and wait for a response.
+
+        :param routing_key: The routing key to publish on.
+        :type routing_key: str
+        :param payload: The content of the message.
+        :type payload: dict
+        :param kwargs: Keyword arguments to pass to SimpleQueue
+        :type kwargs: dict
+        :returns: Tuple of result, outcome
+        :rtype: tuple
+        """
+        response_queue_name = 'response-{}'.format(uuid.uuid4())
+        self.logger.debug('Creating response queue "{}"'.format(
+            response_queue_name))
         queue_opts = {
             'auto_delete': True,
             'durable': False,
@@ -131,14 +156,43 @@ class CommissaireService(ConsumerMixin):
         if kwargs.get('queue_opts'):
             queue_opts.update(kwargs.pop('queue_opts'))
 
-        send_queue = self.connection.SimpleQueue(
-            queue_name,
+        response_queue = self.connection.SimpleQueue(
+            response_queue_name,
             queue_opts=queue_opts,
             **kwargs)
 
-        send_queue.put(payload)
-        send_queue.close()
-        self.logger.debug('Sent "{}" to "{}"'.format(payload, queue_name))
+        self.producer.publish(
+            payload,
+            routing_key,
+            reply_to=response_queue_name)
+
+        self.logger.debug('Sent "{}" to "{}". Waiting on response...'.format(
+            payload, response_queue_name))
+
+        try:
+            result = response_queue.get(block=False, timeout=1)
+            result.ack()
+            outcome = result.properties.get('outcome', 'error')
+            if outcome is 'success':
+                result = result.payload['result']
+            else:
+                self.logger.warn(
+                    'Unexpected outcome: outcome="{}", payload="{}"'.format(
+                        outcome, result.payload))
+                raise Exception('TODO make me a real exception.')
+        except Exception as error:
+            result = {'error': {
+                'type': type(error),
+                'message': str(error),
+            }}
+            outcome = 'error'
+
+        self.logger.debug(
+            'Result retrieved from {}: outcome="{}" payload="{}"'.format(
+                response_queue_name, outcome, result))
+        self.logger.debug('Closing queue {}'.format(response_queue_name))
+        response_queue.close()
+        return result, outcome
 
     def on_connection_revived(self):
         """
