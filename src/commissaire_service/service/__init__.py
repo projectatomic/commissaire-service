@@ -63,18 +63,51 @@ class CommissaireService(ConsumerMixin):
                 Consumer(queue, callbacks=[self._wrap_on_message]))
         return consumers
 
-    def _wrap_on_message(self, body, message):
+    def on_message(self, body, message):
         """
-        Wraps on_message for logging.
+        Called when a non-action message arrives.
 
         :param body: Body of the message.
         :type body: str
         :param message: The message instance.
         :type message: kombu.message.Message
         """
-        self.logger.debug('Received message "{0}"'.format(
-            message.delivery_tag))
-        self.on_message(body, message)
+        self.logger.error(
+            'Rejecting unknown message: payload="{}", properties="{}"'.format(
+                body, message.properties))
+        message.reject()
+
+    def _wrap_on_message(self, body, message):
+        """
+        Wraps on_message for action routing and logging.
+
+        :param body: Body of the message.
+        :type body: str
+        :param message: The message instance.
+        :type message: kombu.message.Message
+        """
+        self.logger.debug('Received message "{}" {}'.format(
+            message.delivery_tag, body))
+        # If we have action and args treat it is an action request
+        if 'action' in body.keys() and 'args' in body.keys():
+            try:
+                result, outcome = getattr(
+                    self, 'on_{}'.format(body['action']))(
+                        message=message, **body['args'])
+                message.ack()
+            except Exception as error:
+                result = error
+                outcome = 'error'
+            if message.properties.get('reply_to'):
+                response_queue = self.connection.SimpleQueue(
+                    message.properties['reply_to'])
+                response_queue.put({
+                    'result': result,
+                }, outcome=outcome)
+                response_queue.close()
+        # Otherwise send it to on_message
+        else:
+            self.on_message(body, message)
         self.logger.debug('Message "{0}" {1} ackd'.format(
             message.delivery_tag,
             ('was' if message.acknowledged else 'was not')))
