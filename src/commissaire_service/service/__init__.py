@@ -112,6 +112,34 @@ class CommissaireService(ConsumerMixin):
             message.delivery_tag,
             ('was' if message.acknowledged else 'was not')))
 
+    def send_msg(self, queue_name, payload, **kwargs):
+        """
+        Sends a msg to a simple queue.
+
+        :param queue_name: The name of the queue to use.
+        :type queue_name: str
+        :param payload: The content of the message.
+        :type payload: dict
+        :param kwargs: Keyword arguments to pass to SimpleQueue
+        :type kwargs: dict
+        """
+        self.logger.debug('Sending "{}" to "{}"'.format(payload, queue_name))
+        queue_opts = {
+            'auto_delete': True,
+            'durable': False,
+        }
+        if kwargs.get('queue_opts'):
+            queue_opts.update(kwargs.pop('queue_opts'))
+
+        send_queue = self.connection.SimpleQueue(
+            queue_name,
+            queue_opts=queue_opts,
+            **kwargs)
+
+        send_queue.put(payload)
+        send_queue.close()
+        self.logger.debug('Sent "{}" to "{}"'.format(payload, queue_name))
+
     def on_connection_revived(self):
         """
         Called when a reconnection occurs.
