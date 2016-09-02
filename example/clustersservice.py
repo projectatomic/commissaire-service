@@ -19,7 +19,7 @@ Prototype cluster service.
 
 import logging
 
-from kombu import Connection, Exchange, Queue
+from kombu import Queue
 
 from commissaire_service.service import CommissaireService
 
@@ -54,15 +54,13 @@ class ClustersService(CommissaireService):
 
 
 if __name__ == '__main__':
-    exchange = Exchange('commissaire', type='topic')
-    # NOTE: Hardcoding the queue for the example
-    queue = Queue('clusters', exchange, 'http.clusters')
+    queue = Queue('clusters', routing_key='http.clusters.*')
 
     try:
         # NOTE: Using redis in the prototype
         ClustersService(
-            Connection('redis://localhost:6379/'),
-            exchange,
+            'commissaire',
+            'redis://127.0.0.1:6379/',
             [queue]
         ).run()
     except KeyboardInterrupt:

@@ -18,7 +18,7 @@ Service base class.
 import logging
 import uuid
 
-from kombu import Producer
+from kombu import Connection, Exchange, Producer
 from kombu.mixins import ConsumerMixin
 
 
@@ -27,23 +27,35 @@ class CommissaireService(ConsumerMixin):
     An example prototype CommissaireService base class.
     """
 
-    def __init__(self, connection, exchange, queues):
+    def __init__(self, exchange_name, connection_url, queues):
         """
         Initializes a new Service instance.
 
-        :param connection: A kombu connection.
-        :type connection: kombu.Connection
-        :param connection: A kombu Exchange.
-        :type connection: kombu.Exchange
+        :param exchange_name: Name of the topic exchange.
+        :type exchange_name: str
+        :param connection_url: Kombu connection url.
+        :type connection_url: str
         :param queues: List of kombu.Queues to consume
         :type queues: list
         """
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Initializing {0}'.format(self.__class__.__name__))
-        self._queues = queues
-        self._exchange = exchange
-        self.connection = connection
-        self.producer = Producer(self.connection.channel(), exchange)
+        self.connection = Connection(connection_url)
+        self._channel = self.connection.channel()
+        self._exchange = Exchange(exchange_name, type='topic').bind(
+            self._channel)
+        self._exchange.declare()
+
+        # Set up queues
+        self._queues = []
+        for queue in queues:
+            queue.exchange = self._exchange
+            queue = queue.bind(self._channel)
+            self._queues.append(queue)
+            self.logger.debug(queue.as_dict())
+
+        # Create producer for publishing on topics
+        self.producer = Producer(self._channel, self._exchange)
         self.logger.debug('Initializing finished')
 
     def get_consumers(self, Consumer, channel):
@@ -89,16 +101,18 @@ class CommissaireService(ConsumerMixin):
         """
         self.logger.debug('Received message "{}" {}'.format(
             message.delivery_tag, body))
+        action = message.delivery_info['routing_key'].rsplit('.', 1)[1]
         # If we have action and args treat it is an action request
-        if 'action' in body.keys() and 'args' in body.keys():
+        if 'args' in body.keys():
             try:
                 result, outcome = getattr(
-                    self, 'on_{}'.format(body['action']))(
+                    self, 'on_{}'.format(action))(
                         message=message, **body['args'])
                 message.ack()
             except Exception as error:
-                result = error
+                result = str(error)
                 outcome = 'error'
+                message.reject()
             if message.properties.get('reply_to'):
                 response_queue = self.connection.SimpleQueue(
                     message.properties['reply_to'])
@@ -164,6 +178,7 @@ class CommissaireService(ConsumerMixin):
         self.producer.publish(
             payload,
             routing_key,
+            declare=[self._exchange],
             reply_to=response_queue_name)
 
         self.logger.debug('Sent "{}" to "{}". Waiting on response...'.format(
@@ -194,11 +209,11 @@ class CommissaireService(ConsumerMixin):
         response_queue.close()
         return result, outcome
 
-    def on_connection_revived(self):
+    def onconnection_revived(self):
         """
         Called when a reconnection occurs.
         """
-        self.logger.info('Connection reestablished')
+        self.logger.info('Connection (re)established')
 
     def on_consume_ready(self, connection, channel, consumers):  # NOQA
         """

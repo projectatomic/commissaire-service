@@ -5,11 +5,18 @@ Prototype Commissaire Service Library
 ## Actions
 ## Service Action Invocations
 
-Actions are an abstraction for remote invocation of methods.
+Actions are an abstraction for remote invocation of methods. The last element
+for the routing_key defines what action to be called.
+
+### Example
+
+``commissaire.jobs.investigator.investigate`` would call the
+``investigate(...)`` for any service listening on ``commissaire.jobs.investigator.*``
+
+### Message Example
 
 ```javascript
 {
-    'action': str, // Name of the remote method
     'args': dict   // Maps as keyword arguments to an on_action()
 }
 ```
