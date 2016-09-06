@@ -95,9 +95,9 @@ class CommissaireService(ConsumerMixin):
         :type message: kombu.message.Message
         """
         self.logger.error(
-            'Rejecting unknown message: payload="{}", properties="{}"'.format(
+            'Dropping unknown message: payload="{}", properties="{}"'.format(
                 body, message.properties))
-        message.reject()
+        message.ack()
 
     def _wrap_on_message(self, body, message):
         """
@@ -119,10 +119,24 @@ class CommissaireService(ConsumerMixin):
                 result = getattr(
                     self, 'on_{}'.format(body['method']))(
                         message=message, **body['params'])
-                message.ack()
             except Exception as error:
-                result = 'Error:' + str(error) + str(type(error))
-                message.reject()
+                jsonrpc_error_code = -32600
+                # If there is an attribute error then use the Method Not Found
+                # code in the error response
+                if type(error) is AttributeError:
+                    jsonrpc_error_code = -32601
+                result = {
+                    'jsonrpc': '2.0',
+                    'id': body['id'],
+                    'error': {
+                        'code': jsonrpc_error_code,
+                        'message': str(error),
+                        'data': {
+                            'exception': str(type(error))
+                        }
+                    }
+                }
+            message.ack()
             if message.properties.get('reply_to'):
                 response_queue = self.connection.SimpleQueue(
                     message.properties['reply_to'])
