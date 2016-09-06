@@ -58,6 +58,15 @@ class CommissaireService(ConsumerMixin):
         self.producer = Producer(self._channel, self._exchange)
         self.logger.debug('Initializing finished')
 
+    def create_id(self):
+        """
+        Creates a new unique identifier.
+
+        :returns: A unique identification string.
+        :rtype: str
+        """
+        return str(uuid.uuid4())
+
     def get_consumers(self, Consumer, channel):
         """
         Returns the a list of consumers to watch. Called by the parent Mixin.
@@ -78,7 +87,7 @@ class CommissaireService(ConsumerMixin):
 
     def on_message(self, body, message):
         """
-        Called when a non-action message arrives.
+        Called when a non-jsonrpc message arrives.
 
         :param body: Body of the message.
         :type body: str
@@ -92,7 +101,7 @@ class CommissaireService(ConsumerMixin):
 
     def _wrap_on_message(self, body, message):
         """
-        Wraps on_message for action routing and logging.
+        Wraps on_message for jsonrpc routing and logging.
 
         :param body: Body of the message.
         :type body: str
@@ -101,24 +110,25 @@ class CommissaireService(ConsumerMixin):
         """
         self.logger.debug('Received message "{}" {}'.format(
             message.delivery_tag, body))
-        action = message.delivery_info['routing_key'].rsplit('.', 1)[1]
-        # If we have action and args treat it is an action request
-        if 'args' in body.keys():
+        expected_method = message.delivery_info['routing_key'].rsplit(
+            '.', 1)[1]
+        # If we have a method and it matches the routing key treat it
+        # as a jsonrpc call
+        if 'method' in body.keys() and body['method'] == expected_method:
             try:
-                result, outcome = getattr(
-                    self, 'on_{}'.format(action))(
-                        message=message, **body['args'])
+                result = getattr(
+                    self, 'on_{}'.format(body['method']))(
+                        message=message, **body['params'])
                 message.ack()
             except Exception as error:
-                result = str(error)
-                outcome = 'error'
+                result = 'Error:' + str(error) + str(type(error))
                 message.reject()
             if message.properties.get('reply_to'):
                 response_queue = self.connection.SimpleQueue(
                     message.properties['reply_to'])
                 response_queue.put({
                     'result': result,
-                }, outcome=outcome)
+                })
                 response_queue.close()
         # Otherwise send it to on_message
         else:
@@ -127,40 +137,51 @@ class CommissaireService(ConsumerMixin):
             message.delivery_tag,
             ('was' if message.acknowledged else 'was not')))
 
-    def send_response(self, queue_name, payload, **kwargs):
+    def send_response(self, queue_name, id, payload, **kwargs):
         """
         Sends a response to a simple queue. Responses are sent back to a
         request and never should be the owner of the queue.
 
         :param queue_name: The name of the queue to use.
         :type queue_name: str
+        :param id: The unique request id
+        :type id: str
         :param payload: The content of the message.
         :type payload: dict
         :param kwargs: Keyword arguments to pass to SimpleQueue
         :type kwargs: dict
         """
-        self.logger.debug('Sending "{}" to "{}"'.format(payload, queue_name))
+        self.logger.debug('Sending response for message id "{}"'.format(id))
         send_queue = self.connection.SimpleQueue(queue_name, **kwargs)
-
-        send_queue.put(payload)
-        self.logger.debug('Sent "{}" to "{}"'.format(payload, queue_name))
+        jsonrpc_msg = {
+            'jsonrpc': "2.0",
+            'id': id,
+            'result': payload,
+        }
+        self.logger.debug('jsonrpc msg: {}'.format(jsonrpc_msg))
+        send_queue.put(jsonrpc_msg)
+        self.logger.debug('Sent response for message id "{}"'.format(id))
         send_queue.close()
 
-    def send_request(self, routing_key, payload, **kwargs):
+    def send_request(self, routing_key, id, method, params={}, **kwargs):
         """
         Sends a request to a simple queue. Requests create the initial response
         queue and wait for a response.
 
         :param routing_key: The routing key to publish on.
         :type routing_key: str
-        :param payload: The content of the message.
-        :type payload: dict
+        :param id: The unique request id
+        :type id: str
+        :param method: The remote method to request.
+        :type method: str
+        :param params: Keyword parameters to pass to the remote method.
+        :type params: dict
         :param kwargs: Keyword arguments to pass to SimpleQueue
         :type kwargs: dict
-        :returns: Tuple of result, outcome
+        :returns: Result
         :rtype: tuple
         """
-        response_queue_name = 'response-{}'.format(uuid.uuid4())
+        response_queue_name = 'response-{}'.format(self.create_id())
         self.logger.debug('Creating response queue "{}"'.format(
             response_queue_name))
         queue_opts = {
@@ -175,39 +196,38 @@ class CommissaireService(ConsumerMixin):
             queue_opts=queue_opts,
             **kwargs)
 
+        jsonrpc_msg = {
+            'jsonrpc': "2.0",
+            'id': id,
+            'method': method,
+            'params': params,
+        }
+        self.logger.debug('jsonrpc message for id "{}": "{}"'.format(
+            id, jsonrpc_msg))
+
         self.producer.publish(
-            payload,
+            jsonrpc_msg,
             routing_key,
             declare=[self._exchange],
             reply_to=response_queue_name)
 
-        self.logger.debug('Sent "{}" to "{}". Waiting on response...'.format(
-            payload, response_queue_name))
+        self.logger.debug(
+            'Sent message id "{}" to "{}". Waiting on response...'.format(
+                id, response_queue_name))
 
-        try:
-            result = response_queue.get(block=False, timeout=1)
-            result.ack()
-            outcome = result.properties.get('outcome', 'error')
-            if outcome is 'success':
-                result = result.payload['result']
-            else:
-                self.logger.warn(
-                    'Unexpected outcome: outcome="{}", payload="{}"'.format(
-                        outcome, result.payload))
-                raise Exception('TODO make me a real exception.')
-        except Exception as error:
-            result = {'error': {
-                'type': type(error),
-                'message': str(error),
-            }}
-            outcome = 'error'
+        result = response_queue.get(block=False, timeout=1)
+        result.ack()
+        if 'error' in result.payload.keys():
+            self.logger.warn(
+                'Error returned from the message id "{}"'.format(
+                    id, result.payload))
 
         self.logger.debug(
-            'Result retrieved from {}: outcome="{}" payload="{}"'.format(
-                response_queue_name, outcome, result))
+            'Result retrieved from response queue "{}": payload="{}"'.format(
+                response_queue_name, result))
         self.logger.debug('Closing queue {}'.format(response_queue_name))
         response_queue.close()
-        return result, outcome
+        return result.payload
 
     def onconnection_revived(self):
         """

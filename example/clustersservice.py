@@ -19,8 +19,6 @@ Prototype cluster service.
 
 import logging
 
-from kombu import Queue
-
 from commissaire_service.service import CommissaireService
 
 # NOTE: Only added for this example
@@ -47,13 +45,23 @@ class ClustersService(CommissaireService):
 
         # NOTE: action is an example. We will need to define verbs
         #       this is just an example stub
-        response, outcome = self.send_request('storage', {'action': 'list'})
-        self.logger.debug('Got {} {}'.format(response, outcome))
+        # id = self.create_id()
+        # response = self.send_request(
+        #     'storage',
+        #     id,
+        #     'list',
+        #     {
+        #         'jsonsprc': '2.0',
+        #         'id': '12345',
+        #         'method': 'list',
+        #         'params': {'model': 'clusters'}})
+        # self.logger.debug('Got {}'.format(response))
         # Return result
-        return ({'clusters': ['...']}, 'success')
+        return {'clusters': ['...']}
 
 
 if __name__ == '__main__':
+    from kombu import Queue
     queue = Queue('clusters', routing_key='http.clusters.*')
 
     try:
