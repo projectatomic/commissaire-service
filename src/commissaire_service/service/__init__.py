@@ -1,3 +1,4 @@
+
 # Copyright (C) 2016  Red Hat, Inc
 #
 # This program is free software: you can redistribute it and/or modify
@@ -16,10 +17,82 @@
 Service base class.
 """
 import logging
+import multiprocessing
 import uuid
 
-from kombu import Connection, Exchange, Producer
+from time import sleep
+
+from kombu import Connection, Exchange, Producer, Queue
 from kombu.mixins import ConsumerMixin
+
+
+class ServiceManager:
+    """
+    Multiprocessed Service Manager.
+    """
+    def __init__(self, service_class, process_count, exchange_name,
+                 connection_url, qkwargs, **kwargs):
+        """
+        Initializes a new ServiceManager instance.
+
+        :param service_cls: The CommissaireService class to manager.
+        :type service_cls: class
+        :param process_count: The number of processes to run.
+        :type process_count: int
+        :param exchange_name: Name of the topic exchange.
+        :type exchange_name: str
+        :param connection_url: Kombu connection url.
+        :type connection_url: str
+        :param qkwargs: One or more dicts keyword arguments for queue creation
+        :type qkwargs: list
+        :param kwargs: Other keyword arguments to pass to service initializer.
+        :type kwargs: dict
+        """
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.debug('Initializing {0}'.format(self.__class__.__name__))
+        self.service_class = service_class
+        self._process_count = process_count
+        self.connection_url = connection_url
+        self.exchange_name = exchange_name
+        self.qkwargs = qkwargs
+        self.kwargs = kwargs
+        self._pool = multiprocessing.Pool(
+            self._process_count, maxtasksperchild=1)
+        self._asyncs = []
+
+    def _start_process(self):
+        """
+        Starts a single process based on class attributes.
+        """
+        kwargs = self.kwargs.copy()
+        kwargs.update({
+            'exchange_name': self.exchange_name,
+            'connection_url': self.connection_url,
+            'qkwargs': self.qkwargs,
+            'autorun': True,
+        })
+        self.logger.debug('Starting a new {} process with {}'.format(
+            self.service_class.__class__.__name__, kwargs))
+        # TODO: Need to call run ...
+        self._asyncs.append(
+            self._pool.apply_async(self.service_class, kwds=kwargs))
+
+    def run(self):
+        """
+        Runs the manager "forever".
+        """
+        for x in range(0, self._process_count):
+            self._start_process()
+        while True:
+            for process_result in self._asyncs:
+                if process_result.ready():
+                    self.logger.warn(
+                        'Process {} finished. Replacing it with a '
+                        'new one..'.format(process_result))
+                    idx = self._asyncs.index(process_result)
+                    process_result = self._asyncs.pop(idx)
+                    self._start_process()
+            sleep(1)
 
 
 class CommissaireService(ConsumerMixin):
@@ -27,7 +100,7 @@ class CommissaireService(ConsumerMixin):
     An example prototype CommissaireService base class.
     """
 
-    def __init__(self, exchange_name, connection_url, queues):
+    def __init__(self, exchange_name, connection_url, qkwargs, autorun=False):
         """
         Initializes a new Service instance.
 
@@ -35,8 +108,10 @@ class CommissaireService(ConsumerMixin):
         :type exchange_name: str
         :param connection_url: Kombu connection url.
         :type connection_url: str
-        :param queues: List of kombu.Queues to consume
-        :type queues: list
+        :param qkwargs: One or more dicts keyword arguments for queue creation
+        :type qkwargs: list
+        :param autorun: If set to True will call run() after initialization.
+        :type autorun: bool
         """
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Initializing {0}'.format(self.__class__.__name__))
@@ -48,7 +123,8 @@ class CommissaireService(ConsumerMixin):
 
         # Set up queues
         self._queues = []
-        for queue in queues:
+        for kwargs in qkwargs:
+            queue = Queue(**kwargs)
             queue.exchange = self._exchange
             queue = queue.bind(self._channel)
             self._queues.append(queue)
@@ -57,6 +133,9 @@ class CommissaireService(ConsumerMixin):
         # Create producer for publishing on topics
         self.producer = Producer(self._channel, self._exchange)
         self.logger.debug('Initializing finished')
+        # If autorun is True then execute run()
+        if autorun is True:
+            self.run()
 
     def create_id(self):
         """
@@ -79,10 +158,12 @@ class CommissaireService(ConsumerMixin):
         :rtype: list
         """
         consumers = []
+        self.logger.debug('Setting up consumers')
         for queue in self._queues:
             self.logger.debug('Will consume on {0}'.format(queue.name))
             consumers.append(
                 Consumer(queue, callbacks=[self._wrap_on_message]))
+        self.logger.debug('Consumers: {}'.format(consumers))
         return consumers
 
     def on_message(self, body, message):

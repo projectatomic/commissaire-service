@@ -19,7 +19,7 @@ Prototype cluster service.
 
 import logging
 
-from commissaire_service.service import CommissaireService
+from commissaire_service.service import CommissaireService, ServiceManager
 
 # NOTE: Only added for this example
 logger = logging.getLogger('ClustersService')
@@ -29,6 +29,13 @@ handler.setFormatter(logging.Formatter(
     '%(name)s.%(process)d(%(levelname)s): %(message)s'))
 logger.handlers.append(handler)
 # --
+
+llogger = logging.getLogger('ServiceManager')
+llogger.setLevel(logging.DEBUG)
+lhandler = logging.StreamHandler()
+lhandler.setFormatter(logging.Formatter(
+    '%(name)s.%(process)d(%(levelname)s): %(message)s'))
+llogger.handlers.append(lhandler)
 
 
 class ClustersService(CommissaireService):
@@ -61,15 +68,21 @@ class ClustersService(CommissaireService):
 
 
 if __name__ == '__main__':
-    from kombu import Queue
-    queue = Queue('clusters', routing_key='http.clusters.*')
-
-    try:
-        # NOTE: Using redis in the prototype
-        ClustersService(
-            'commissaire',
-            'redis://127.0.0.1:6379/',
-            [queue]
-        ).run()
-    except KeyboardInterrupt:
-        pass
+    qkwargs = {'name': 'clusters', 'routing_key': 'http.clusters.*'}
+    ServiceManager(
+        ClustersService,
+        3,
+        'commissaire',
+        'redis://127.0.0.1:6379/',
+        [qkwargs]
+    ).run()
+    # Example of running 1 process directly
+    # try:
+    #     # NOTE: Using redis in the prototype
+    #     ClustersService(
+    #         'commissaire',
+    #         'redis://127.0.0.1:6379/',
+    #         [qkwargs]
+    #     ).run()
+    # except KeyboardInterrupt:
+    #     pass
