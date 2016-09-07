@@ -26,6 +26,19 @@ from kombu import Connection, Exchange, Producer, Queue
 from kombu.mixins import ConsumerMixin
 
 
+def run_service(service_class, kwargs):
+    """
+    Creates a service instance and executes it's run method.
+
+    :param service_cls: The CommissaireService class to manager.
+    :type service_cls: class
+    :param kwargs: Other keyword arguments to pass to service initializer.
+    :type kwargs: dict
+    """
+    service = service_class(**kwargs)
+    service.run()
+
+
 class ServiceManager:
     """
     Multiprocessed Service Manager.
@@ -69,12 +82,13 @@ class ServiceManager:
             'exchange_name': self.exchange_name,
             'connection_url': self.connection_url,
             'qkwargs': self.qkwargs,
-            'autorun': True,
         })
         self.logger.debug('Starting a new {} process with {}'.format(
             self.service_class.__class__.__name__, kwargs))
         self._asyncs.append(
-            self._pool.apply_async(self.service_class, kwds=kwargs))
+            self._pool.apply_async(
+                run_service,
+                args=[self.service_class], kwds={'kwargs': kwargs}))
 
     def run(self):
         """
@@ -88,6 +102,7 @@ class ServiceManager:
                     self.logger.warn(
                         'Process {} finished. Replacing it with a '
                         'new one..'.format(process_result))
+                    print(process_result.get())
                     idx = self._asyncs.index(process_result)
                     process_result = self._asyncs.pop(idx)
                     self._start_process()
@@ -99,7 +114,7 @@ class CommissaireService(ConsumerMixin):
     An example prototype CommissaireService base class.
     """
 
-    def __init__(self, exchange_name, connection_url, qkwargs, autorun=False):
+    def __init__(self, exchange_name, connection_url, qkwargs):
         """
         Initializes a new Service instance.
 
@@ -109,8 +124,6 @@ class CommissaireService(ConsumerMixin):
         :type connection_url: str
         :param qkwargs: One or more dicts keyword arguments for queue creation
         :type qkwargs: list
-        :param autorun: If set to True will call run() after initialization.
-        :type autorun: bool
         """
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Initializing {0}'.format(self.__class__.__name__))
@@ -132,9 +145,6 @@ class CommissaireService(ConsumerMixin):
         # Create producer for publishing on topics
         self.producer = Producer(self._channel, self._exchange)
         self.logger.debug('Initializing finished')
-        # If autorun is True then execute run()
-        if autorun is True:
-            self.run()
 
     def create_id(self):
         """
