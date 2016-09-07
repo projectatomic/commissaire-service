@@ -3,7 +3,7 @@ Prototype Commissaire Service Library
 
 ## Invocations
 The library uses [jsonrpc v2](http://www.jsonrpc.org/specification) for remote
-invocation and notifications.
+invocation and notifications internals.
 
 **Note**: The last element for the ``routing_key`` must match the method to be called
 
@@ -44,6 +44,4 @@ invocation and notifications.
 
 ## Creating a Service
 
-1. Subclass ``commissaire_service.service.CommissaireService``
-1. Define all ``on_{{ action }}(self, message, ...)`` for specific calls
-1. **Optional**: Define ``on_message(body, message))`` for handling non jsonrpc messages
+See the docs folder.
