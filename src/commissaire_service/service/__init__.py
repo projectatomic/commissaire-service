@@ -197,9 +197,11 @@ class CommissaireService(ConsumerMixin):
         # as a jsonrpc call
         if 'method' in body.keys() and body['method'] == expected_method:
             try:
-                result = getattr(
-                    self, 'on_{}'.format(body['method']))(
-                        message=message, **body['params'])
+                method = getattr(self, 'on_{}'.format(body['method']))
+                if type(body['params']) is dict:
+                    result = method(message=message, **body['params'])
+                else:
+                    result = method(*body['params'], message=message)
             except Exception as error:
                 jsonrpc_error_code = -32600
                 # If there is an attribute error then use the Method Not Found
@@ -217,8 +219,15 @@ class CommissaireService(ConsumerMixin):
                         }
                     }
                 }
+                self.logger.warn(
+                    'Exception raised during method call: {}: {}'.format(
+                        type(error), error))
+            self.logger.debug('Result for "{}": "{}"'.format(
+                body['id'], result))
             message.ack()
             if message.properties.get('reply_to'):
+                self.logger.debug('Responding to {0}'.format(
+                    message.properties['reply_to']))
                 response_queue = self.connection.SimpleQueue(
                     message.properties['reply_to'])
                 response_queue.put({
@@ -258,15 +267,13 @@ class CommissaireService(ConsumerMixin):
         self.logger.debug('Sent response for message id "{}"'.format(id))
         send_queue.close()
 
-    def send_request(self, routing_key, id, method, params={}, **kwargs):
+    def send_request(self, routing_key, method, params={}, **kwargs):
         """
         Sends a request to a simple queue. Requests create the initial response
         queue and wait for a response.
 
         :param routing_key: The routing key to publish on.
         :type routing_key: str
-        :param id: The unique request id
-        :type id: str
         :param method: The remote method to request.
         :type method: str
         :param params: Keyword parameters to pass to the remote method.
@@ -276,7 +283,8 @@ class CommissaireService(ConsumerMixin):
         :returns: Result
         :rtype: tuple
         """
-        response_queue_name = 'response-{}'.format(self.create_id())
+        id = self.create_id()
+        response_queue_name = 'response-{}'.format(id)
         self.logger.debug('Creating response queue "{}"'.format(
             response_queue_name))
         queue_opts = {
@@ -285,6 +293,8 @@ class CommissaireService(ConsumerMixin):
         }
         if kwargs.get('queue_opts'):
             queue_opts.update(kwargs.pop('queue_opts'))
+
+        self.logger.debug('Response queue arguments: {}'.format(kwargs))
 
         response_queue = self.connection.SimpleQueue(
             response_queue_name,
@@ -310,8 +320,9 @@ class CommissaireService(ConsumerMixin):
             'Sent message id "{}" to "{}". Waiting on response...'.format(
                 id, response_queue_name))
 
-        result = response_queue.get(block=False, timeout=1)
+        result = response_queue.get(block=True, timeout=3)
         result.ack()
+
         if 'error' in result.payload.keys():
             self.logger.warn(
                 'Error returned from the message id "{}"'.format(

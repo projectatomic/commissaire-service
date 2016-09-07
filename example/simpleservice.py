@@ -14,75 +14,91 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
-Prototype cluster service.
+Example simple service
 """
 
 import logging
 
 from commissaire_service.service import CommissaireService, ServiceManager
 
-# NOTE: Only added for this example
-logger = logging.getLogger('ClustersService')
+# NOTE: Only these logging sections are added just for the examples
+#       You can safely skip this section
+logger = logging.getLogger('SimpleService')
 logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter(
     '%(name)s.%(process)d(%(levelname)s): %(message)s'))
 logger.handlers.append(handler)
-# --
 
-llogger = logging.getLogger('ServiceManager')
-llogger.setLevel(logging.DEBUG)
-lhandler = logging.StreamHandler()
-lhandler.setFormatter(logging.Formatter(
+slogger = logging.getLogger('ServiceManager')
+slogger.setLevel(logging.DEBUG)
+shandler = logging.StreamHandler()
+shandler.setFormatter(logging.Formatter(
     '%(name)s.%(process)d(%(levelname)s): %(message)s'))
-llogger.handlers.append(lhandler)
+slogger.handlers.append(shandler)
+# -----
 
 
-class ClustersService(CommissaireService):
+class SimpleService(CommissaireService):
     """
-    An example prototype service.
+    A simple example service which exposes two methods on the bus:
+
+    - add: Takes two integers and returns their sum.
+    - wordy_add: Takes two integers, adds them, and returns a wordy result.
     """
 
-    def on_list(self, message):
+    def on_add(self, x, y, message):
         """
-        Lists all clusters.
+        Adds two integers together. On the bus this would be exposed as add().
         """
-        self.logger.debug('Responding to {0}'.format(
-            message.properties['reply_to']))
+        # Return the result back on the bus
+        return int(x) + int(y)
 
-        # NOTE: action is an example. We will need to define verbs
-        #       this is just an example stub
-        # id = self.create_id()
-        # response = self.send_request(
-        #     'storage',
-        #     id,
-        #     'list',
-        #     {
-        #         'jsonsprc': '2.0',
-        #         'id': '12345',
-        #         'method': 'list',
-        #         'params': {'model': 'clusters'}})
-        # self.logger.debug('Got {}'.format(response))
-        # Return result
-        return {'clusters': ['...']}
+    def on_wordy_add(self, x, y, message):
+        """
+        Adds two integers and returns a wordy response. On the bus this is
+        exposed as wordy_add().
+        """
+        # Call on_add via the bus. Normally you wouldn't do this since it's
+        # a local method already, but we are doing this to show how the remote
+        # calls are done.
+        response = self.send_request(
+            routing_key='simple.add',
+            method='add',
+            params=[int(x), int(y)])
+        # Return the result back on the bus
+        # TODO: Fix response to be full jsonrpc 2.0
+        return 'Adding {} plus {} results in {}'.format(
+            x, y, response['result'])
 
 
 if __name__ == '__main__':
-    qkwargs = {'name': 'clusters', 'routing_key': 'http.clusters.*'}
-    ServiceManager(
-        ClustersService,
-        3,
-        'commissaire',
-        'redis://127.0.0.1:6379/',
-        [qkwargs]
-    ).run()
-    # Example of running 1 process directly
+    # queue_kwargs are the keyword arguments that are used when creating
+    # kombu.Queues. We do this instead of passing objects directly so that
+    # the service can create and handle the Queue's itself within it's owner
+    # process scope.
+    queue_kwargs = [
+        {'name': 'simple', 'routing_key': 'simple.*'},
+    ]
+    # Here we use a ServiceManager to have 3 instances of SimepleService
+    # running at all times. It will run until a KeyboardInterrupt is raised.
+    try:
+        ServiceManager(
+            SimpleService,
+            3,
+            'commissaire',
+            'redis://127.0.0.1:6379/',
+            queue_kwargs
+        ).run()
+    except KeyboardInterrupt:
+        pass
+
+    # If you wanted to run just one process without the ServiceManager:
     # try:
-    #     # NOTE: Using redis in the prototype
-    #     ClustersService(
+    #     SimpleService(
     #         'commissaire',
     #         'redis://127.0.0.1:6379/',
-    #         [qkwargs]
+    #         queue_kwargs
     #     ).run()
     # except KeyboardInterrupt:
     #     pass
