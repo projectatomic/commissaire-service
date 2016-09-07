@@ -73,7 +73,6 @@ class ServiceManager:
         })
         self.logger.debug('Starting a new {} process with {}'.format(
             self.service_class.__class__.__name__, kwargs))
-        # TODO: Need to call run ...
         self._asyncs.append(
             self._pool.apply_async(self.service_class, kwds=kwargs))
 
@@ -241,7 +240,7 @@ class CommissaireService(ConsumerMixin):
             message.delivery_tag,
             ('was' if message.acknowledged else 'was not')))
 
-    def send_response(self, queue_name, id, payload, **kwargs):
+    def respond(self, queue_name, id, payload, **kwargs):
         """
         Sends a response to a simple queue. Responses are sent back to a
         request and never should be the owner of the queue.
@@ -267,7 +266,7 @@ class CommissaireService(ConsumerMixin):
         self.logger.debug('Sent response for message id "{}"'.format(id))
         send_queue.close()
 
-    def send_request(self, routing_key, method, params={}, **kwargs):
+    def request(self, routing_key, method, params={}, **kwargs):
         """
         Sends a request to a simple queue. Requests create the initial response
         queue and wait for a response.

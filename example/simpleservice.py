@@ -62,7 +62,7 @@ class SimpleService(CommissaireService):
         # Call on_add via the bus. Normally you wouldn't do this since it's
         # a local method already, but we are doing this to show how the remote
         # calls are done.
-        response = self.send_request(
+        response = self.request(
             routing_key='simple.add',
             method='add',
             params=[int(x), int(y)])
