@@ -102,7 +102,6 @@ class ServiceManager:
                     self.logger.warn(
                         'Process {} finished. Replacing it with a '
                         'new one..'.format(process_result))
-                    print(process_result.get())
                     idx = self._asyncs.index(process_result)
                     process_result = self._asyncs.pop(idx)
                     self._start_process()
@@ -129,8 +128,8 @@ class CommissaireService(ConsumerMixin):
         self.logger.debug('Initializing {0}'.format(self.__class__.__name__))
         self.connection = Connection(connection_url)
         self._channel = self.connection.channel()
-        self._exchange = Exchange(exchange_name, type='topic').bind(
-            self._channel)
+        self._exchange = Exchange(
+            exchange_name, type='topic').bind(self._channel)
         self._exchange.declare()
 
         # Set up queues
@@ -146,7 +145,8 @@ class CommissaireService(ConsumerMixin):
         self.producer = Producer(self._channel, self._exchange)
         self.logger.debug('Initializing finished')
 
-    def create_id(self):
+    @classmethod
+    def create_id(cls):
         """
         Creates a new unique identifier.
 
@@ -344,13 +344,13 @@ class CommissaireService(ConsumerMixin):
         response_queue.close()
         return result.payload
 
-    def onconnection_revived(self):
+    def onconnection_revived(self):  # pragma: no cover
         """
         Called when a reconnection occurs.
         """
         self.logger.info('Connection (re)established')
 
-    def on_consume_ready(self, connection, channel, consumers):  # NOQA
+    def on_consume_ready(self, connection, channel, consumers):  # pragma: no cover # NOQA
         """
         Called when the service is ready to consume messages.
 
@@ -371,7 +371,7 @@ class CommissaireService(ConsumerMixin):
                 'the following queues: "{2}"'.format(
                     connection.as_uri(), channel, '", "'.join(queue_names)))
 
-    def on_consume_end(self, connection, channel):  # NOQA
+    def on_consume_end(self, connection, channel):  # pragma: no cover
         """
         Called when the service stops consuming.
 
@@ -382,7 +382,7 @@ class CommissaireService(ConsumerMixin):
         """
         self.logger.warn('Consuming has ended')
 
-    def __del__(self):  # NOQA
+    def __del__(self):  # pragma: no cover
         """
         Called upon instance death.
         """
