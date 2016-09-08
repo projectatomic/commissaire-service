@@ -45,7 +45,7 @@ to the bus and passed to the caller.
 
 .. note::
 
-    message must always be the **last** argument!
+    message must always be the **first** argument!
 
 .. code-block:: python
 
@@ -55,7 +55,7 @@ to the bus and passed to the caller.
         """
         return 'pong'
 
-    def on_echo(self, words, message):
+    def on_echo(self, message, words):
         """
         Exposed as echo. Takes one bus argument of words.
         """

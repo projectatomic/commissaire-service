@@ -47,14 +47,14 @@ class SimpleService(CommissaireService):
     - wordy_add: Takes two integers, adds them, and returns a wordy result.
     """
 
-    def on_add(self, x, y, message):
+    def on_add(self, message, x, y):
         """
         Adds two integers together. On the bus this would be exposed as add().
         """
         # Return the result back on the bus
         return int(x) + int(y)
 
-    def on_wordy_add(self, x, y, message):
+    def on_wordy_add(self, message, x, y):
         """
         Adds two integers and returns a wordy response. On the bus this is
         exposed as wordy_add().

@@ -213,7 +213,7 @@ class CommissaireService(ConsumerMixin):
                 if type(body['params']) is dict:
                     result = method(message=message, **body['params'])
                 else:
-                    result = method(*body['params'], message=message)
+                    result = method(message, *body['params'])
             except Exception as error:
                 jsonrpc_error_code = -32600
                 # If there is an attribute error then use the Method Not Found
