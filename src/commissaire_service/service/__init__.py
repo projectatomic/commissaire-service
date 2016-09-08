@@ -204,7 +204,10 @@ class CommissaireService(ConsumerMixin):
             '.', 1)[1]
         # If we have a method and it matches the routing key treat it
         # as a jsonrpc call
-        if 'method' in body.keys() and body['method'] == expected_method:
+        if (
+                isinstance(body, dict) and
+                'method' in body.keys() and
+                body.get('method') == expected_method):
             try:
                 method = getattr(self, 'on_{}'.format(body['method']))
                 if type(body['params']) is dict:
