@@ -384,11 +384,3 @@ class CommissaireService(ConsumerMixin):
         :type channel: kombu.transport.*.Channel
         """
         self.logger.warn('Consuming has ended')
-
-    def __del__(self):  # pragma: no cover
-        """
-        Called upon instance death.
-        """
-        self.logger.debug(
-            '{0} instance has is being destroyed by garbage collection'.format(
-                self))
