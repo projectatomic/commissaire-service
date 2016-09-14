@@ -16,6 +16,7 @@
 """
 Service base class.
 """
+import json
 import logging
 import multiprocessing
 import uuid
@@ -180,21 +181,20 @@ class CommissaireService(ConsumerMixin):
         Called when a non-jsonrpc message arrives.
 
         :param body: Body of the message.
-        :type body: str
+        :type body: dict
         :param message: The message instance.
         :type message: kombu.message.Message
         """
         self.logger.error(
             'Dropping unknown message: payload="{}", properties="{}"'.format(
                 body, message.properties))
-        message.ack()
 
     def _wrap_on_message(self, body, message):
         """
         Wraps on_message for jsonrpc routing and logging.
 
         :param body: Body of the message.
-        :type body: str
+        :type body: dict or json string
         :param message: The message instance.
         :type message: kombu.message.Message
         """
@@ -202,53 +202,68 @@ class CommissaireService(ConsumerMixin):
             message.delivery_tag, body))
         expected_method = message.delivery_info['routing_key'].rsplit(
             '.', 1)[1]
-        # If we have a method and it matches the routing key treat it
-        # as a jsonrpc call
-        if (
-                isinstance(body, dict) and
-                'method' in body.keys() and
-                body.get('method') == expected_method):
-            try:
+
+        # If we don't get a valid message we default to -1 for the id
+        uid = -1
+        result = None
+        try:
+            # If we don't have a dict then it should be a json string
+            if isinstance(body, str):
+                body = json.loads(body)
+
+            # If we have a method and it matches the routing key treat it
+            # as a jsonrpc call
+            if (
+                    isinstance(body, dict) and
+                    'method' in body.keys() and
+                    body.get('method') == expected_method):
+                uid = body.get('id', '-1')
                 method = getattr(self, 'on_{}'.format(body['method']))
                 if type(body['params']) is dict:
                     result = method(message=message, **body['params'])
                 else:
                     result = method(message, *body['params'])
-            except Exception as error:
-                jsonrpc_error_code = -32600
-                # If there is an attribute error then use the Method Not Found
-                # code in the error response
-                if type(error) is AttributeError:
-                    jsonrpc_error_code = -32601
-                result = {
-                    'jsonrpc': '2.0',
-                    'id': body['id'],
-                    'error': {
-                        'code': jsonrpc_error_code,
-                        'message': str(error),
-                        'data': {
-                            'exception': str(type(error))
-                        }
+
+                self.logger.debug('Result for "{}": "{}"'.format(
+                    uid, result))
+            # Otherwise send it to on_message
+            else:
+                self.on_message(body, message)
+        except Exception as error:
+            jsonrpc_error_code = -32600
+            # If there is an attribute error then use the Method Not Found
+            # code in the error response
+            if type(error) is AttributeError:
+                jsonrpc_error_code = -32601
+            elif type(error) is json.decoder.JSONDecodeError:
+                jsonrpc_error_code = -32700  # Parser error
+            result = {
+                'jsonrpc': '2.0',
+                'id': uid,
+                'error': {
+                    'code': jsonrpc_error_code,
+                    'message': str(error),
+                    'data': {
+                        'exception': str(type(error))
                     }
                 }
-                self.logger.warn(
-                    'Exception raised during method call: {}: {}'.format(
-                        type(error), error))
-            self.logger.debug('Result for "{}": "{}"'.format(
-                body['id'], result))
-            message.ack()
-            if message.properties.get('reply_to'):
-                self.logger.debug('Responding to {0}'.format(
-                    message.properties['reply_to']))
-                response_queue = self.connection.SimpleQueue(
-                    message.properties['reply_to'])
-                response_queue.put({
-                    'result': result,
-                })
-                response_queue.close()
-        # Otherwise send it to on_message
-        else:
-            self.on_message(body, message)
+            }
+            self.logger.warn(
+                'Exception raised during method call: {}: {}'.format(
+                    type(error), error))
+
+        # Reply back if needed
+        if message.properties.get('reply_to'):
+            self.logger.debug('Responding to {0}'.format(
+                message.properties['reply_to']))
+            response_queue = self.connection.SimpleQueue(
+                message.properties['reply_to'])
+            response_queue.put({
+                'result': json.dumps(result),
+            })
+            response_queue.close()
+
+        message.ack()
         self.logger.debug('Message "{0}" {1} ackd'.format(
             message.delivery_tag,
             ('was' if message.acknowledged else 'was not')))

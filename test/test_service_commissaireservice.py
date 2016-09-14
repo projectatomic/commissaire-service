@@ -112,7 +112,6 @@ class TestCommissaireService(TestCase):
         """
         message = mock.MagicMock(properties={'properties': 'here'})
         self.service_instance.on_message('test', message)
-        message.ack.assert_called_once_with()
 
     def test_responds(self):
         """
@@ -183,7 +182,7 @@ class TestCommissaireService(TestCase):
             payload=body,
             properties={'reply_to': 'test_queue'},
             delivery_info={'routing_key': 'test.method'})
-        self.service_instance.on_method = mock.MagicMock()
+        self.service_instance.on_method = mock.MagicMock(return_value='{}')
         self.service_instance._wrap_on_message(body, message)
         # The on_method should have been called
         self.service_instance.on_method.assert_called_once_with(
@@ -211,10 +210,10 @@ class TestCommissaireService(TestCase):
         """
         Verify ServiceManager._wrap_on_message forwards to on_message on non jsonrpc messages.
         """
-        body = 'message'
+        self.service_instance.on_message =  mock.MagicMock()
+        body = '[]'
         message = mock.MagicMock(
             payload=body,
             properties={'reply_to': 'test_queue'})
         self.service_instance._wrap_on_message(body, message)
-        # The message should be ackd
-        message.ack.assert_called_once_with()
+        self.assertEquals(1, self.service_instance.on_message.call_count)
