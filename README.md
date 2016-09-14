@@ -1,5 +1,7 @@
 # commissaire-service
-Prototype Commissaire Service Library
+Commissaire Service Framework
+
+[![Documentation](https://readthedocs.org/projects/commissaire/badge/?version=latest)](http://commissaire.readthedocs.org/) [![Build Status](https://travis-ci.org/projectatomic/commissaire-service.svg)](https://travis-ci.org/projectatomic/commissaire-service)
 
 ## Invocations
 The library uses [jsonrpc v2](http://www.jsonrpc.org/specification) for remote
@@ -44,4 +46,4 @@ invocation and notifications internals.
 
 ## Creating a Service
 
-See the docs folder.
+See the [documentation](http://commissaire.readthedocs.org/).
