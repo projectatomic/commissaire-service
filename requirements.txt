@@ -1,2 +1,4 @@
 kombu
+python-etcd
+requests
 sphinx_rtd_theme
