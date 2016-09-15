@@ -19,6 +19,7 @@ Service base class.
 import json
 import logging
 import multiprocessing
+import traceback
 import uuid
 
 from time import sleep
@@ -249,8 +250,8 @@ class CommissaireService(ConsumerMixin):
                 }
             }
             self.logger.warn(
-                'Exception raised during method call: {}: {}'.format(
-                    type(error), error))
+                'Exception raised during method call:\n{}'.format(
+                    traceback.format_exc()))
 
         # Reply back if needed
         if message.properties.get('reply_to'):
