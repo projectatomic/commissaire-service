@@ -20,7 +20,7 @@ import json
 import commissaire.models as models
 from commissaire import constants as C
 
-from commissaire_service.service import CommissaireService, ServiceManager
+from commissaire_service.service import CommissaireService
 from commissaire_service.storage.storehandlermanager import (
     StoreHandlerManager, ConfigurationError)
 
@@ -104,7 +104,9 @@ class StorageService(CommissaireService):
         :param config_file: Optional configuration file path
         :type config_file: str or None
         """
-        queue_kwargs = [ {'routing_key': 'storage.*'} ]
+        queue_kwargs = [
+            {'routing_key': 'storage.*'},
+        ]
         CommissaireService.__init__(
             self, exchange_name, connection_url, queue_kwargs)
 
@@ -112,8 +114,8 @@ class StorageService(CommissaireService):
 
         # Collect all model types in commissaire.models.
         self._model_types = {k: v for k, v in models.__dict__.items()
-                             if isinstance(v, type)
-                             and issubclass(v, models.Model)}
+                             if isinstance(v, type) and
+                             issubclass(v, models.Model)}
 
         config_data = read_config_file(config_file)
         store_handlers = config_data.get('storage-handlers', [])
