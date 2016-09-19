@@ -1,3 +1,4 @@
+commissaire
 kombu
 python-etcd
 requests
