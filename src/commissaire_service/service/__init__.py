@@ -196,8 +196,7 @@ class CommissaireService(ConsumerMixin, BusMixin):
             '.', 1)[1]
 
         # If we don't get a valid message we default to -1 for the id
-        uid = -1
-        result = None
+        response = {'jsonrpc': '2.0', 'id': -1}
         try:
             # If we don't have a dict then it should be a json string
             if isinstance(body, str):
@@ -209,15 +208,16 @@ class CommissaireService(ConsumerMixin, BusMixin):
                     isinstance(body, dict) and
                     'method' in body.keys() and
                     body.get('method') == expected_method):
-                uid = body.get('id', '-1')
+                response['id'] = body.get('id', -1)
                 method = getattr(self, 'on_{}'.format(body['method']))
                 if type(body['params']) is dict:
                     result = method(message=message, **body['params'])
                 else:
                     result = method(message, *body['params'])
+                response['result'] = result
 
                 self.logger.debug('Result for "{}": "{}"'.format(
-                    uid, result))
+                    response['id'], result))
             # Otherwise send it to on_message
             else:
                 self.on_message(body, message)
@@ -229,15 +229,11 @@ class CommissaireService(ConsumerMixin, BusMixin):
                 jsonrpc_error_code = -32601
             elif type(error) is json.decoder.JSONDecodeError:
                 jsonrpc_error_code = -32700  # Parser error
-            result = {
-                'jsonrpc': '2.0',
-                'id': uid,
-                'error': {
-                    'code': jsonrpc_error_code,
-                    'message': str(error),
-                    'data': {
-                        'exception': str(type(error))
-                    }
+            response['error'] = {
+                'code': jsonrpc_error_code,
+                'message': str(error),
+                'data': {
+                    'exception': str(type(error))
                 }
             }
             self.logger.warn(
@@ -250,9 +246,7 @@ class CommissaireService(ConsumerMixin, BusMixin):
                 message.properties['reply_to']))
             response_queue = self.connection.SimpleQueue(
                 message.properties['reply_to'])
-            response_queue.put({
-                'result': json.dumps(result),
-            })
+            response_queue.put(json.dumps(response))
             response_queue.close()
 
         message.ack()
