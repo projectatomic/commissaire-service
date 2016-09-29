@@ -210,7 +210,7 @@ class CommissaireService(ConsumerMixin, BusMixin):
                     body.get('method') == expected_method):
                 response['id'] = body.get('id', -1)
                 method = getattr(self, 'on_{}'.format(body['method']))
-                if type(body['params']) is dict:
+                if type(body.setdefault('params', {})) is dict:
                     result = method(message=message, **body['params'])
                 else:
                     result = method(message, *body['params'])
