@@ -205,7 +205,7 @@ def main():  # pragma: no cover
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '-c', '--config', required=True, type=str,
+        '-c', '--config', type=str,
         help='Configuration file to use.')
     parser.add_argument(
         '--bus-exchange', type=str, default='commissaire',
