@@ -23,7 +23,7 @@ from subprocess import CalledProcessError
 from pkg_resources import resource_filename
 from time import sleep
 
-from .ansible_wrapper import execute_playbook
+from .ansible_wrapper import gather_facts, execute_playbook
 
 
 class Transport:
@@ -120,9 +120,7 @@ class Transport:
 
         if result in expected_results:
             self.logger.debug('{0}: Good result {1}'.format(ips, result))
-            # FIXME How do we get facts out of Ansible now?
-            fact_cache = {}
-            return (result, fact_cache)
+            return result
 
         self.logger.debug('{0}: Bad result {1}'.format(ips, result))
         raise Exception('Can not run for {0}'.format(ips))
@@ -139,7 +137,8 @@ class Transport:
         :type oscmd: commissaire_service.oscmd.OSCmdBase
         :param kwargs: keyword arguments for the remote command
         :type kwargs: dict
-        :returns: tuple -- (exitcode(int), facts(dict)).
+        :returns: An Ansible status code (0=Success)
+        :rtype: int
         """
         play_file = resource_filename(
             'commissaire_service', 'data/ansible/playbooks/deploy.yaml')
@@ -160,7 +159,8 @@ class Transport:
         :type oscmd: commissaire_service.oscmd.OSCmdBase
         :param kwargs: keyword arguments for the remote command
         :type kwargs: dict
-        :returns: tuple -- (exitcode(int), facts(dict)).
+        :returns: An Ansible status code (0=Success)
+        :rtype: int
         """
         play_file = resource_filename(
             'commissaire_service', 'data/ansible/playbooks/upgrade.yaml')
@@ -181,7 +181,8 @@ class Transport:
         :type oscmd: commissaire_service.oscmd.OSCmdBase
         :param kwargs: keyword arguments for the remote command
         :type kwargs: dict
-        :returns: tuple -- (exitcode(int), facts(dict)).
+        :returns: An Ansible status code (0=Success)
+        :rtype: int
         """
         play_file = resource_filename(
             'commissaire_service', 'data/ansible/playbooks/restart.yaml')
@@ -203,14 +204,15 @@ class Transport:
         """
         play_file = resource_filename(
             'commissaire_service', 'data/ansible/playbooks/get_info.yaml')
-        result, fact_cache = self._run(ip, key_file, play_file)
-        self.logger.debug('Fact cache: {0}'.format(fact_cache))
+        result = self._run(ip, key_file, play_file)
+        ansible_facts = gather_facts(ip, self._get_ansible_args(key_file))
+        self.logger.debug('Ansible facts: {0}'.format(ansible_facts))
         facts = {}
-        facts['os'] = fact_cache['ansible_distribution'].lower()
-        facts['cpus'] = fact_cache['ansible_processor_cores']
-        facts['memory'] = fact_cache['ansible_memory_mb']['real']['total']
+        facts['os'] = ansible_facts['ansible_distribution'].lower()
+        facts['cpus'] = ansible_facts['ansible_processor_cores']
+        facts['memory'] = ansible_facts['ansible_memory_mb']['real']['total']
         space = 0
-        for x in fact_cache['ansible_mounts']:
+        for x in ansible_facts['ansible_mounts']:
             space += x['size_total']
         facts['space'] = space
 
@@ -225,15 +227,14 @@ class Transport:
         :type host: commissaire.models.Host
         :param key_file: The path to the ssh_priv_key.
         :type key_file: str
-        :returns: Ansible results for the run
-        :rtype: dict
+        :returns: An Ansible status code (0=Success)
+        :rtype: int
         """
         play_file = resource_filename(
             'commissaire_service',
             'data/ansible/playbooks/check_host_availability.yaml')
-        results = self._run(
+        return self._run(
             host.address, key_file, play_file, [0, 3], disable_reconnect=True)
-        return results
 
     def bootstrap(self, ip, key_file, oscmd, etcd_config, cluster, network):
         """
@@ -251,7 +252,8 @@ class Transport:
         :type cluster: commissaire.models.Cluster
         :param network: A network model for the host's cluster
         :type network: commissaire.models.Network
-        :returns: tuple -- (exitcode(int), facts(dict)).
+        :returns: An Ansible status code (0=Success)
+        :rtype: int
         """
         self.logger.debug('Using {0} as the oscmd class for {1}'.format(
             oscmd.os_type, ip))
@@ -327,6 +329,5 @@ class Transport:
 
         play_file = resource_filename(
             'commissaire_service', 'data/ansible/playbooks/bootstrap.yaml')
-        results = self._run(ip, key_file, play_file, [0], play_vars)
 
-        return results
+        return self._run(ip, key_file, play_file, [0], play_vars)
