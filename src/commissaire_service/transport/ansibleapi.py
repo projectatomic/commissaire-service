@@ -200,11 +200,11 @@ class Transport:
         :type ip: str
         :param key_file: Full path to the file holding the private SSH key.
         :type key_file: str
-        :returns: tuple -- (exitcode(int), facts(dict)).
+        :returns: A dictionary of facts for a Host model
+        :rtype: dict
+        :raises subprocess.CalledProcessError: if Ansible returns a non-zero
+                                               exit status
         """
-        play_file = resource_filename(
-            'commissaire_service', 'data/ansible/playbooks/get_info.yaml')
-        result = self._run(ip, key_file, play_file)
         ansible_facts = gather_facts(ip, self._get_ansible_args(key_file))
         self.logger.debug('Ansible facts: {0}'.format(ansible_facts))
         facts = {}
@@ -217,7 +217,7 @@ class Transport:
         facts['space'] = space
 
         self.logger.debug('Grabbed Facts: {0}'.format(facts))
-        return (result, facts)
+        return facts
 
     def check_host_availability(self, host, key_file):
         """

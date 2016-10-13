@@ -132,7 +132,7 @@ class InvestigatorService(CommissaireService):
             raise error
 
         try:
-            result, facts = transport.get_info(address, key.path)
+            facts = transport.get_info(address, key.path)
             # recreate the host instance with new data
             data = json.loads(host.to_json(secure=True))
             data.update(facts)
