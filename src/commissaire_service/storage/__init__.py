@@ -15,6 +15,7 @@
 
 import fnmatch
 import importlib
+import json
 
 from time import sleep
 
@@ -109,19 +110,19 @@ class StorageService(CommissaireService):
         self._manager.register_store_handler(
             handler_type, config, *matched_types)
 
-    def _build_model(self, model_type_name, model_kwargs):
+    def _build_model(self, model_type_name, model_json_data):
         """
         Builds a model instance from a type name and kwargs.
 
         :param model_type_name: Model type for the JSON data
         :type model_type_name: str
-        :param model_kwargs: Keyword args to pass to the model
-        :type model_kwargs: dict
+        :param model_json_data: JSON representation of a model
+        :type model_json_data: str
         :returns: a model instance
         :rtype: commissaire_service.storage.models.Model
         """
         model_type = self._model_types[model_type_name]
-        return model_type.new(**model_kwargs)
+        return model_type.new(**json.loads(model_json_data))
 
     def on_save(self, message, model_type_name, model_json_data, secure=False):
         """
