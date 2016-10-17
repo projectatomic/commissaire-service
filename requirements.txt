@@ -3,3 +3,4 @@ python-etcd
 requests
 sphinx_rtd_theme
 git+https://github.com/projectatomic/commissaire.git
+redis
