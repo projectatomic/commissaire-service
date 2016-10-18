@@ -50,8 +50,7 @@ class StorageService(CommissaireService):
         queue_kwargs = [
             {'routing_key': 'storage.*'},
         ]
-        CommissaireService.__init__(
-            self, exchange_name, connection_url, queue_kwargs)
+        super().__init__(exchange_name, connection_url, queue_kwargs)
 
         self._manager = StoreHandlerManager()
 
