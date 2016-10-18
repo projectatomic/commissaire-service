@@ -60,7 +60,7 @@ class StorageService(CommissaireService):
                              issubclass(v, models.Model)}
 
         config_data = read_config_file(config_file)
-        store_handlers = config_data.get('storage-handlers', [])
+        store_handlers = config_data.get('storage_handlers', [])
 
         # Configure store handlers from user data.
         if len(store_handlers) == 0:
