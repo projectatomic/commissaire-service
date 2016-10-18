@@ -111,17 +111,23 @@ class StorageService(CommissaireService):
 
     def _build_model(self, model_type_name, model_json_data):
         """
-        Builds a model instance from a type name and kwargs.
+        Builds a model instance from a type name and model data, which may
+        either be a dictionary or a JSON-parsable string.
 
         :param model_type_name: Model type for the JSON data
         :type model_type_name: str
         :param model_json_data: JSON representation of a model
-        :type model_json_data: str
+        :type model_json_data: dict or str
         :returns: a model instance
         :rtype: commissaire_service.storage.models.Model
         """
+        if isinstance(model_json_data, str):
+            model_json_data = json.loads(model_json_data)
+            if not isinstance(model_json_data, dict):
+                raise json.decoder.JSONDecodeError(
+                    'Model data expected to be a JSON object')
         model_type = self._model_types[model_type_name]
-        return model_type.new(**json.loads(model_json_data))
+        return model_type.new(**model_json_data)
 
     def on_save(self, message, model_type_name, model_json_data, secure=False):
         """
@@ -136,7 +142,7 @@ class StorageService(CommissaireService):
         :param model_type_name: Model type for the JSON data
         :type model_type_name: str
         :param model_json_data: JSON representation of a model
-        :type model_json_data: str
+        :type model_json_data: dict or str
         :param secure: If the resulting dict should include secure content.
         :type secure: bool
         :returns: full dict representation of the model
@@ -158,7 +164,7 @@ class StorageService(CommissaireService):
         :param model_type_name: Model type for the JSON data
         :type model_type_name: str
         :param model_json_data: JSON identification of a model
-        :type model_json_data: str
+        :type model_json_data: dict or str
         :param secure: If the resulting dict should include secure content.
         :type secure: bool
         :returns: full dict representation of the model
@@ -180,7 +186,7 @@ class StorageService(CommissaireService):
         :param model_type_name: Model type for the JSON data
         :type model_type_name: str
         :param model_json_data: JSON identification of a model
-        :type model_json_data: str
+        :type model_json_data: dict or str
         """
         model_instance = self._build_model(model_type_name, model_json_data)
         self._manager.delete(model_instance)
