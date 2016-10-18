@@ -4,3 +4,4 @@ requests
 sphinx_rtd_theme
 git+https://github.com/projectatomic/commissaire.git
 redis
+ansible>=2.1,<2.2
