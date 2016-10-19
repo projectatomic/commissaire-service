@@ -6,6 +6,7 @@ packages:
     - gcc
     - python3-tox
     - redhat-rpm-config
+    - openssl-devel
 
 tests:
     - python3-tox
