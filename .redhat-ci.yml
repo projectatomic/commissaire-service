@@ -5,6 +5,7 @@ packages:
     - git
     - gcc
     - python3-tox
+    - redhat-rpm-config
 
 tests:
     - python3-tox
