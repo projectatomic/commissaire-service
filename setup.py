@@ -63,6 +63,8 @@ setup(
         'console_scripts': [
             ('commissaire-storage-service = '
              'commissaire_service.storage:main'),
+            ('commissaire-clusterexec-service = '
+             'commissaire_service.clusterexec:main'),
             ('commissaire-investigator-service = '
              'commissaire_service.investigator:main'),
             ('commissaire-watcher-service = '
