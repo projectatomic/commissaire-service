@@ -101,6 +101,7 @@ class Transport:  # pragma: no cover
         for attempt in range(0, 3):
             try:
                 execute_playbook(play_file, ips, ansible_args)
+                break
             except CalledProcessError as error:
                 result = error.returncode
 
