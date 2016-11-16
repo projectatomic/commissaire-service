@@ -93,8 +93,6 @@ class Transport:  # pragma: no cover
         if play_vars:
             ansible_args.extend(['--extra-vars', json.dumps(play_vars)])
 
-        self.logger.debug('Ansible arguments: {}'.format(ansible_args))
-
         result = 0
 
         # actually run it

@@ -68,7 +68,7 @@ def gather_facts(host, args=[]):  # pragma: no cover
     host = host.strip()
     cli_args = (['ansible', host, '--module-name', 'setup'] +
                 get_inventory_file(host) + args)
-    logger.info('Executing: {}'.format(' '.join(cli_args)))
+    logger.info('Executing: {}'.format(cli_args))
     try:
         completed_process = subprocess.run(
             cli_args,
@@ -104,7 +104,7 @@ def execute_playbook(playbook, hosts, args=[]):  # pragma: no cover
     cli_args = (['ansible-playbook'] + args +
                 get_inventory_file(hosts) +
                 [os.path.realpath(playbook)])
-    logger.info('Executing: {}'.format(' '.join(cli_args)))
+    logger.info('Executing: {}'.format(cli_args))
     try:
         completed_process = subprocess.run(
             cli_args,
