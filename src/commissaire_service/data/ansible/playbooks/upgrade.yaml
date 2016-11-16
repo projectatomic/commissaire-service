@@ -13,7 +13,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ---
-- hosts: commissaire_targets
+
+# Apply to all hosts; a custom inventory is provided for each play.
+- hosts: all
   name: upgrade
   gather_facts: no
   tasks:
