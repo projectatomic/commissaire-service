@@ -167,9 +167,13 @@ class InvestigatorService(CommissaireService):
             etcd_config = self._get_etcd_config()
             cluster, network = self._get_cluster_and_network_models(
                 cluster_data)
-            self.logger.info(
-                'Using cluster "{0}" of type "{1}"'.format(
-                    cluster.name, cluster.type))
+            if cluster.container_manager:
+                self.logger.info(
+                    'Using cluster "{0}" managed by "{1}"'.format(
+                        cluster.name, cluster.container_manager))
+            else:
+                self.logger.info(
+                    'Using unmanaged cluster "{0}"'.format(cluster.name))
             self.logger.info(
                 'Using network "{0}" of type "{1}"'.format(
                     network.name, network.type))
@@ -192,13 +196,15 @@ class InvestigatorService(CommissaireService):
             self.request('storage.save', params=params)
 
         # Verify association with relevant container managers
-        params = {
-            'cluster_type': cluster.type,
-            'address': address
-        }
-        response = self.request('storage.node_registered', params=params)
-        if response['result']:
-            host.status = 'active'
+        # FIXME Adapt this for ContainerManagerConfig.
+        # params = {
+        #     'cluster_type': cluster.type,
+        #     'address': address
+        # }
+        # response = self.request('storage.node_registered', params=params)
+        # if response['result']:
+        #     host.status = 'active'
+        host.status = 'disassociated'  # XXX Temporary hack.
 
         self.logger.info(
             'Finished bootstrapping for {0}'.format(address))

@@ -258,7 +258,6 @@ class Transport:  # pragma: no cover
             oscmd.os_type, ip))
 
         play_vars = {
-            'commissaire_cluster_type': cluster.type,
             'commissaire_bootstrap_ip': ip,
             # TODO: Where do we get this?
             'commissaire_docker_registry_host': '127.0.0.1',
