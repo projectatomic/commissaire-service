@@ -141,10 +141,9 @@ class Transport:  # pragma: no cover
         """
         play_file = resource_filename(
             'commissaire_service', 'data/ansible/playbooks/deploy.yaml')
-        deploy_command = " ".join(oscmd.deploy(kwargs['version']))
         return self._run(
             ips, key_file, play_file, [0],
-            {'commissaire_deploy_command': deploy_command})
+            {'commissaire_deploy_version': kwargs['version']})
 
     def upgrade(self, ips, key_file, oscmd, kwargs):
         """

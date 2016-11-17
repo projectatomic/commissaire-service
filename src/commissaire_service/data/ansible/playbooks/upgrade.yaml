@@ -19,5 +19,14 @@
   name: upgrade
   gather_facts: no
   tasks:
-    - name: upgrade host
+    - name: Checking for atomic model
+      stat:
+        path: /run/ostree-booted
+      register: ostree_booted
+      ignore_errors: True
+    - name: Upgrade host on atomic model
+      command: "rpm-ostree upgrade"
+      when: ostree_booted.stat.exists is defined
+    - name: Upgrade host on traditional model
       command: "{{ commissaire_upgrade_command }}"
+      when: ostree_booted.stat.exists is undefined

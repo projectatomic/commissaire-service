@@ -19,6 +19,12 @@
   name: deploy
   gather_facts: no
   tasks:
-    - name: deploy tree image
-      command: "{{ commissaire_deploy_command }}"
+    - name: Checking for atomic model
+      stat:
+        path: /run/ostree-booted
+      register: ostree_booted
+      ignore_errors: True
+    - name: Deploy tree image on atomic model
+      command: "rpm-ostree deploy {{ commissaire_deploy_version }}"
+      when: ostree_booted.stat.exists is defined
 
