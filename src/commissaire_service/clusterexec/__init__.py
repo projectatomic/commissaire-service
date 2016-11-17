@@ -13,11 +13,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import datetime
 import json
 
 from commissaire.models import (
     ClusterDeploy, ClusterUpgrade, ClusterRestart, Cluster, Host)
+from commissaire.util.date import formatted_dt
 from commissaire.util.ssh import TemporarySSHKey
 
 from commissaire_service.oscmd import get_oscmd
@@ -207,7 +207,7 @@ class ClusterExecService(CommissaireService):
 
         # Final set of command result.
 
-        model_instance.finished_at = datetime.datetime.utcnow().isoformat()
+        model_instance.finished_at = formatted_dt()
         model_instance.status = end_status
 
         self.logger.info(
@@ -240,7 +240,7 @@ class ClusterExecService(CommissaireService):
         model_instance = ClusterUpgrade.new(
             name=cluster_name,
             status='in_process',
-            started_at=datetime.datetime.utcnow().isoformat(),
+            started_at=formatted_dt(),
             upgraded=[],
             in_process=[]
         )
@@ -261,7 +261,7 @@ class ClusterExecService(CommissaireService):
         model_instance = ClusterRestart.new(
             name=cluster_name,
             status='in_process',
-            started_at=datetime.datetime.utcnow().isoformat(),
+            started_at=formatted_dt(),
             restarted=[],
             in_process=[]
         )
@@ -285,7 +285,7 @@ class ClusterExecService(CommissaireService):
         model_instance = ClusterDeploy.new(
             name=cluster_name,
             status='in_process',
-            started_at=datetime.datetime.utcnow().isoformat(),
+            started_at=formatted_dt(),
             version=version,
             deployed=[],
             in_process=[]

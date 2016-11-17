@@ -23,6 +23,7 @@ from time import sleep
 
 from commissaire import constants as C
 from commissaire.models import Host, WatcherRecord
+from commissaire.util.date import formatted_dt
 from commissaire.util.ssh import TemporarySSHKey
 
 from commissaire_service.service import CommissaireService
@@ -72,7 +73,7 @@ class WatcherService(CommissaireService):
                 self._check(record.address)
             except Exception as error:
                 self.logger.debug('Error: {}: {}'.format(type(error), error))
-            record.last_check = datetime.utcnow().isoformat()
+            record.last_check = formatted_dt()
         else:
             if self.last_address == record.address:
                 # Since we got the same address we could process twice
@@ -120,7 +121,7 @@ class WatcherService(CommissaireService):
                 self.logger.debug(
                     'Starting watcher run for host "{}"'.format(address))
                 result = transport.check_host_availability(host, key.path)
-                host.last_check = datetime.utcnow().isoformat()
+                host.last_check = formatted_dt()
                 self.logger.debug(
                     'Watcher result for host {}: {}'.format(address, result))
             except Exception as error:

@@ -13,14 +13,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import datetime
 import json
 
 import commissaire.constants as C
 
 from commissaire.models import Cluster, Host, Network
-from commissaire.util.ssh import TemporarySSHKey
 from commissaire.util.config import ConfigurationError
+from commissaire.util.date import formatted_dt
+from commissaire.util.ssh import TemporarySSHKey
 
 from commissaire_service.oscmd import get_oscmd
 from commissaire_service.service import CommissaireService
@@ -137,7 +137,7 @@ class InvestigatorService(CommissaireService):
             data = json.loads(host.to_json(secure=True))
             data.update(facts)
             host = Host.new(**data)
-            host.last_check = datetime.datetime.utcnow().isoformat()
+            host.last_check = formatted_dt()
             host.status = 'bootstrapping'
             self.logger.info('Facts for {0} retrieved'.format(address))
             self.logger.debug('Data: {0}'.format(host.to_json()))
