@@ -65,7 +65,7 @@ class ServiceManager:
         :type kwargs: dict
         """
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.logger.debug('Initializing {0}'.format(self.__class__.__name__))
+        self.logger.debug('Initializing {}'.format(self.__class__.__name__))
         self.service_class = service_class
         self._process_count = process_count
         self.connection_url = connection_url
@@ -129,7 +129,7 @@ class CommissaireService(ConsumerMixin, BusMixin):
         """
         name = self.__class__.__name__
         self.logger = logging.getLogger(name)
-        self.logger.debug('Initializing {0}'.format(name))
+        self.logger.debug('Initializing {}'.format(name))
         self.connection = Connection(connection_url)
         self._channel = self.connection.channel()
         self._exchange = Exchange(
@@ -163,7 +163,7 @@ class CommissaireService(ConsumerMixin, BusMixin):
         consumers = []
         self.logger.debug('Setting up consumers')
         for queue in self._queues:
-            self.logger.debug('Will consume on {0}'.format(queue.name))
+            self.logger.debug('Will consume on {}'.format(queue.name))
             consumers.append(
                 Consumer(queue, callbacks=[self.on_message]))
         self.logger.debug('Consumers: {}'.format(consumers))
@@ -232,7 +232,7 @@ class CommissaireService(ConsumerMixin, BusMixin):
 
         # Reply back if needed
         if message.properties.get('reply_to'):
-            self.logger.debug('Responding to {0}'.format(
+            self.logger.debug('Responding to {}'.format(
                 message.properties['reply_to']))
             response_queue = self.connection.SimpleQueue(
                 message.properties['reply_to'])
@@ -240,7 +240,7 @@ class CommissaireService(ConsumerMixin, BusMixin):
             response_queue.close()
 
         message.ack()
-        self.logger.debug('Message "{0}" {1} ackd'.format(
+        self.logger.debug('Message "{}" {} ackd'.format(
             message.delivery_tag,
             ('was' if message.acknowledged else 'was not')))
 
@@ -294,8 +294,8 @@ class CommissaireService(ConsumerMixin, BusMixin):
             for consumer in consumers:
                 queue_names += [x.name for x in consumer.queues]
             self.logger.debug(
-                'Consuming via connection "{0}" and channel "{1}" on '
-                'the following queues: "{2}"'.format(
+                'Consuming via connection "{}" and channel "{}" on '
+                'the following queues: "{}"'.format(
                     connection.as_uri(), channel, '", "'.join(queue_names)))
 
     def on_consume_end(self, connection, channel):  # pragma: no cover

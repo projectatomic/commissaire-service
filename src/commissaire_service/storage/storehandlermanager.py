@@ -77,7 +77,7 @@ class StoreHandlerManager(object):
                 if mt in self._registry:
                     conflicting_type, _, _ = self._registry[mt]
                     raise ConfigurationError(
-                        'Model "{0}" already assigned to "{1}"'.format(
+                        'Model "{}" already assigned to "{}"'.format(
                             getattr(mt, '__name__', '?'),
                             getattr(conflicting_type, '__module__', '?')))
                 else:
@@ -125,8 +125,8 @@ class StoreHandlerManager(object):
                         logger = self._get_logger()
                         logger.warn(
                             'A container manager is already established, '
-                            'skipping {0} as configured for store handler '
-                            '"{1}"'.format(
+                            'skipping {} as configured for store handler '
+                            '"{}"'.format(
                                 container_manager_class.__name__,
                                 handler_type.__name__))
 
@@ -180,9 +180,9 @@ class StoreHandlerManager(object):
         except ValidationError as ve:
             logger.error(ve.args[0], ve.args[1])
             raise ve
-        logger.debug('> SAVE {0}'.format(model_instance))
+        logger.debug('> SAVE {}'.format(model_instance))
         model_instance = handler._save(model_instance)
-        logger.debug('< SAVE {0}'.format(model_instance))
+        logger.debug('< SAVE {}'.format(model_instance))
         return model_instance
 
     def get(self, model_instance):
@@ -196,7 +196,7 @@ class StoreHandlerManager(object):
         """
         logger = self._get_logger()
         handler = self._get_handler(model_instance)
-        logger.debug('> GET {0}'.format(model_instance))
+        logger.debug('> GET {}'.format(model_instance))
         model_instance = handler._get(model_instance)
         # Validate after getting
         try:
@@ -204,7 +204,7 @@ class StoreHandlerManager(object):
         except ValidationError as ve:
             logger.error(ve.args[0], ve.args[1])
             raise ve
-        logger.debug('< GET {0}'.format(model_instance))
+        logger.debug('< GET {}'.format(model_instance))
         return model_instance
 
     def delete(self, model_instance):
@@ -216,7 +216,7 @@ class StoreHandlerManager(object):
         """
         logger = self._get_logger()
         handler = self._get_handler(model_instance)
-        logger.debug('> DELETE {0}'.format(model_instance))
+        logger.debug('> DELETE {}'.format(model_instance))
         handler._delete(model_instance)
 
     def list(self, model_instance):
@@ -230,7 +230,7 @@ class StoreHandlerManager(object):
         """
         logger = self._get_logger()
         handler = self._get_handler(model_instance)
-        logger.debug('> LIST {0}'.format(model_instance))
+        logger.debug('> LIST {}'.format(model_instance))
         model_instance = handler._list(model_instance)
-        logger.debug('< LIST {0}'.format(model_instance))
+        logger.debug('< LIST {}'.format(model_instance))
         return getattr(model_instance, model_instance._list_attr, [])

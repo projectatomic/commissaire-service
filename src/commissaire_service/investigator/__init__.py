@@ -101,10 +101,10 @@ class InvestigatorService(CommissaireService):
         # Statuses follow:
         # http://commissaire.readthedocs.org/en/latest/enums.html#host-statuses
 
-        self.logger.info('{0} is now in investigating.'.format(address))
-        self.logger.debug('Investigating: {0}'.format(address))
+        self.logger.info('{} is now in investigating.'.format(address))
+        self.logger.debug('Investigating: {}'.format(address))
         if cluster_data:
-            self.logger.debug('Related cluster: {0}'.format(cluster_data))
+            self.logger.debug('Related cluster: {}'.format(cluster_data))
 
         try:
             params = {
@@ -116,8 +116,8 @@ class InvestigatorService(CommissaireService):
             host = Host.new(**response['result'])
         except Exception as error:
             self.logger.warn(
-                'Unable to continue for {0} due to '
-                '{1}: {2}. Returning...'.format(address, type(error), error))
+                'Unable to continue for {} due to '
+                '{}: {}. Returning...'.format(address, type(error), error))
             raise error
 
         transport = ansibleapi.Transport(host.remote_user)
@@ -127,8 +127,8 @@ class InvestigatorService(CommissaireService):
             key.create()
         except Exception as error:
             self.logger.warn(
-                'Unable to continue for {0} due to '
-                '{1}: {2}. Returning...'.format(address, type(error), error))
+                'Unable to continue for {} due to '
+                '{}: {}. Returning...'.format(address, type(error), error))
             raise error
 
         try:
@@ -139,10 +139,10 @@ class InvestigatorService(CommissaireService):
             host = Host.new(**data)
             host.last_check = formatted_dt()
             host.status = 'bootstrapping'
-            self.logger.info('Facts for {0} retrieved'.format(address))
-            self.logger.debug('Data: {0}'.format(host.to_json()))
+            self.logger.info('Facts for {} retrieved'.format(address))
+            self.logger.debug('Data: {}'.format(host.to_json()))
         except Exception as error:
-            self.logger.warn('Getting info failed for {0}: {1}'.format(
+            self.logger.warn('Getting info failed for {}: {}'.format(
                 address, str(error)))
             host.status = 'failed'
             key.remove()
@@ -156,12 +156,12 @@ class InvestigatorService(CommissaireService):
             self.request('storage.save', params=params)
 
         self.logger.info(
-            'Finished and stored investigation data for {0}'.format(address))
+            'Finished and stored investigation data for {}'.format(address))
         self.logger.debug(
-            'Finished investigation update for {0}: {1}'.format(
+            'Finished investigation update for {}: {}'.format(
                 address, host.to_json()))
 
-        self.logger.info('{0} is now in bootstrapping'.format(address))
+        self.logger.info('{} is now in bootstrapping'.format(address))
         oscmd = get_oscmd(host.os)
         try:
             etcd_config = self._get_etcd_config()
@@ -169,20 +169,20 @@ class InvestigatorService(CommissaireService):
                 cluster_data)
             if cluster.container_manager:
                 self.logger.info(
-                    'Using cluster "{0}" managed by "{1}"'.format(
+                    'Using cluster "{}" managed by "{}"'.format(
                         cluster.name, cluster.container_manager))
             else:
                 self.logger.info(
-                    'Using unmanaged cluster "{0}"'.format(cluster.name))
+                    'Using unmanaged cluster "{}"'.format(cluster.name))
             self.logger.info(
-                'Using network "{0}" of type "{1}"'.format(
+                'Using network "{}" of type "{}"'.format(
                     network.name, network.type))
             transport.bootstrap(
                 address, key.path, oscmd, etcd_config, cluster, network)
             host.status = 'inactive'
         except Exception as error:
             self.logger.warn(
-                'Unable to start bootstraping for {0}: {1}'.format(
+                'Unable to start bootstraping for {}: {}'.format(
                     address, str(error)))
             host.status = 'disassociated'
             key.remove()
@@ -207,8 +207,8 @@ class InvestigatorService(CommissaireService):
         host.status = 'disassociated'  # XXX Temporary hack.
 
         self.logger.info(
-            'Finished bootstrapping for {0}'.format(address))
-        self.logger.debug('Finished bootstrapping for {0}: {1}'.format(
+            'Finished bootstrapping for {}'.format(address))
+        self.logger.debug('Finished bootstrapping for {}: {}'.format(
             address, host.to_json()))
 
         # XXX TEMPORARILY DISABLED

@@ -62,7 +62,7 @@ class Transport:  # pragma: no cover
         ]
 
         if self.remote_user != 'root':
-            self.logger.debug('Using user {0} for ssh communication.'.format(
+            self.logger.debug('Using user {} for ssh communication.'.format(
                 self.remote_user))
             ansible_args.extend([
                 '--become',
@@ -107,22 +107,22 @@ class Transport:  # pragma: no cover
                 # up to 3 times, sleeping 5 seconds after each attempt.
                 if disable_reconnect:
                     self.logger.warn(
-                        'Not attempting to reconnect to {0}'.format(ips))
+                        'Not attempting to reconnect to {}'.format(ips))
                     break
                 elif result == 3 and attempt < 2:
                     self.logger.warn(
-                        'One or more hosts in {0} is unreachable, '
+                        'One or more hosts in {} is unreachable, '
                         'retrying in 5 seconds...'.format(ips))
                     sleep(5)
                 else:
                     break
 
         if result in expected_results:
-            self.logger.debug('{0}: Good result {1}'.format(ips, result))
+            self.logger.debug('{}: Good result {}'.format(ips, result))
             return result
 
-        self.logger.debug('{0}: Bad result {1}'.format(ips, result))
-        raise Exception('Can not run for {0}'.format(ips))
+        self.logger.debug('{}: Bad result {}'.format(ips, result))
+        raise Exception('Can not run for {}'.format(ips))
 
     def deploy(self, ips, key_file, oscmd, kwargs):
         """
@@ -204,7 +204,7 @@ class Transport:  # pragma: no cover
                                                exit status
         """
         ansible_facts = gather_facts(ip, self._get_ansible_args(key_file))
-        self.logger.debug('Ansible facts: {0}'.format(ansible_facts))
+        self.logger.debug('Ansible facts: {}'.format(ansible_facts))
         facts = {}
         facts['os'] = ansible_facts['ansible_distribution'].lower()
         facts['cpus'] = ansible_facts['ansible_processor_cores']
@@ -214,7 +214,7 @@ class Transport:  # pragma: no cover
             space += x['size_total']
         facts['space'] = space
 
-        self.logger.debug('Grabbed Facts: {0}'.format(facts))
+        self.logger.debug('Grabbed Facts: {}'.format(facts))
         return facts
 
     def check_host_availability(self, host, key_file):
@@ -253,7 +253,7 @@ class Transport:  # pragma: no cover
         :returns: An Ansible status code (0=Success)
         :rtype: int
         """
-        self.logger.debug('Using {0} as the oscmd class for {1}'.format(
+        self.logger.debug('Using {} as the oscmd class for {}'.format(
             oscmd.os_type, ip))
 
         play_vars = {
@@ -322,7 +322,7 @@ class Transport:  # pragma: no cover
         else:
             play_vars['commissaire_enable_pkg_repos'] = 'true'
 
-        self.logger.debug('Variables for bootstrap: {0}'.format(play_vars))
+        self.logger.debug('Variables for bootstrap: {}'.format(play_vars))
 
         play_file = resource_filename(
             'commissaire_service', 'data/ansible/playbooks/bootstrap.yaml')

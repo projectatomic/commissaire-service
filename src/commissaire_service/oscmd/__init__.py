@@ -51,7 +51,7 @@ class OSCmdBase:
         :rtype: list
         """
         raise NotImplementedError(
-            '{0}.restart() must be overriden.'.format(cls.__name__))
+            '{}.restart() must be overriden.'.format(cls.__name__))
 
     @classmethod
     def upgrade(cls):
@@ -62,7 +62,7 @@ class OSCmdBase:
         :rtype: list
         """
         raise NotImplementedError(
-            '{0}.upgrade() must be overriden.'.format(cls.__name__))
+            '{}.upgrade() must be overriden.'.format(cls.__name__))
 
     @classmethod
     def install_libselinux_python(cls):
@@ -73,7 +73,7 @@ class OSCmdBase:
         :rtype: list
         """
         raise NotImplementedError(
-            '{0}.install_libselinux_python() must be overriden.'.format(
+            '{}.install_libselinux_python() must be overriden.'.format(
                 cls.__name__))
 
     @classmethod
@@ -85,7 +85,7 @@ class OSCmdBase:
         :rtype: list
         """
         raise NotImplementedError(
-            '{0}.install_docker() must be overriden.'.format(cls.__name__))
+            '{}.install_docker() must be overriden.'.format(cls.__name__))
 
     @classmethod
     def install_flannel(cls):
@@ -96,7 +96,7 @@ class OSCmdBase:
         :rtype: list
         """
         raise NotImplementedError(
-            '{0}.install_flannel() must be overriden.'.format(cls.__name__))
+            '{}.install_flannel() must be overriden.'.format(cls.__name__))
 
 
 def get_oscmd(os_type):
@@ -109,9 +109,9 @@ def get_oscmd(os_type):
     :rtype: commissaire_service.oscmd.OSCmdBase
     """
     try:
-        module_name = 'commissaire_service.oscmd.{0}'.format(os_type)
+        module_name = 'commissaire_service.oscmd.{}'.format(os_type)
         module = importlib.import_module(module_name)
         return getattr(module, 'OSCmd')
     except ImportError:
         # TODO: Make this a specific exception
-        raise Exception('No OSCmd class for {0}'.format(os_type))
+        raise Exception('No OSCmd class for {}'.format(os_type))

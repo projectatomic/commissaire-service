@@ -256,7 +256,7 @@ class StorageService(CommissaireService):
             for attempt in range(3):
                 if con_mgr.node_registered(address):
                     self.logger.info(
-                        '{0} has been registered with the '
+                        '{} has been registered with the '
                         'container manager'.format(address))
                     return True
                 if attempt == 2:
@@ -264,7 +264,7 @@ class StorageService(CommissaireService):
                         'Could not register with the container manager')
                     return False
                 self.logger.debug(
-                    '{0} has not been registered with the container '
+                    '{} has not been registered with the container '
                     'manager. Checking again in 5 seconds...'.format(
                         address))
                 sleep(5)
