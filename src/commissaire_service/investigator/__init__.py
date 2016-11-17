@@ -151,7 +151,7 @@ class InvestigatorService(CommissaireService):
             # Save the updated host model.
             params = {
                 'model_type_name': host.__class__.__name__,
-                'model_json_data': host.to_json()
+                'model_json_data': host.to_json(secure=True)
             }
             self.request('storage.save', params=params)
 
@@ -191,7 +191,7 @@ class InvestigatorService(CommissaireService):
             # Save the updated host model.
             params = {
                 'model_type_name': host.__class__.__name__,
-                'model_json_data': host.to_json()
+                'model_json_data': host.to_json(secure=True)
             }
             self.request('storage.save', params=params)
 
@@ -216,7 +216,7 @@ class InvestigatorService(CommissaireService):
 
         key.remove()
 
-        return host.to_json()
+        return host.to_json(secure=True)
 
 
 def main():  # pragma: no cover
