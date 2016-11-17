@@ -129,7 +129,7 @@ class StorageService(CommissaireService):
         model_type = self._model_types[model_type_name]
         return model_type.new(**model_json_data)
 
-    def on_save(self, message, model_type_name, model_json_data, secure=False):
+    def on_save(self, message, model_type_name, model_json_data):
         """
         Handler for the "storage.save" routing key.
 
@@ -143,14 +143,12 @@ class StorageService(CommissaireService):
         :type model_type_name: str
         :param model_json_data: JSON representation of a model
         :type model_json_data: dict or str
-        :param secure: If the resulting dict should include secure content.
-        :type secure: bool
         :returns: full dict representation of the model
         :rtype: dict
         """
         model_instance = self._build_model(model_type_name, model_json_data)
         saved_model_instance = self._manager.save(model_instance)
-        return saved_model_instance.to_dict(secure=secure)
+        return saved_model_instance.to_dict(secure=True)
 
     def on_get(self, message, model_type_name, model_json_data, secure=False):
         """
