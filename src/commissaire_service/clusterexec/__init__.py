@@ -124,28 +124,22 @@ class ClusterExecService(CommissaireService):
         else:
             self.logger.warn('No hosts in cluster "{}"'.format(cluster_name))
 
-        # TODO Find a better way to do this...
+        for address in cluster.hostset:
+            try:
+                host = Host.new(address=address)
+                params = {
+                    'model_type_name': host.__class__.__name__,
+                    'model_json_data': host.to_json(),
+                    'secure': True
+                }
+                response = self.request('storage.get', params=params)
+                host = Host.new(**response['result'])
+            except Exception as error:
+                self.logger.warn(
+                    'Unable to get host info for "{}" due to '
+                    '{}: {}'.format(address, type(error), error))
+                raise error
 
-        try:
-            params = {
-                'model_type_name': 'Hosts',
-                'secure': True
-            }
-            response = self.request('storage.list', params=params)
-            hosts = [Host.new(**item) for item in response['result']]
-            self.logger.debug('Got {} hosts from storage'.format(len(hosts)))
-        except Exception as error:
-            self.logger.warn(
-                'No hosts in the cluster.  {}: {}'.format(
-                    type(error), error))
-            raise error
-
-        for host in hosts:
-            if host.address not in cluster.hostset:
-                self.logger.debug(
-                    'Skipping {} as it is not in this cluster'.format(
-                        host.address))
-                continue  # Move on to the next one
             oscmd = get_oscmd(host.os)
 
             # os_command is only used for logging
