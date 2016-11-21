@@ -109,8 +109,7 @@ class InvestigatorService(CommissaireService):
         try:
             params = {
                 'model_type_name': 'Host',
-                'model_json_data': Host.new(address=address).to_json(),
-                'secure': True
+                'model_json_data': Host.new(address=address).to_json()
             }
             response = self.request('storage.get', params=params)
             host = Host.new(**response['result'])
@@ -134,7 +133,7 @@ class InvestigatorService(CommissaireService):
         try:
             facts = transport.get_info(address, key.path)
             # recreate the host instance with new data
-            data = json.loads(host.to_json(secure=True))
+            data = json.loads(host.to_json())
             data.update(facts)
             host = Host.new(**data)
             host.last_check = formatted_dt()
@@ -151,7 +150,7 @@ class InvestigatorService(CommissaireService):
             # Save the updated host model.
             params = {
                 'model_type_name': host.__class__.__name__,
-                'model_json_data': host.to_json(secure=True)
+                'model_json_data': host.to_json()
             }
             self.request('storage.save', params=params)
 
@@ -191,7 +190,7 @@ class InvestigatorService(CommissaireService):
             # Save the updated host model.
             params = {
                 'model_type_name': host.__class__.__name__,
-                'model_json_data': host.to_json(secure=True)
+                'model_json_data': host.to_json()
             }
             self.request('storage.save', params=params)
 
@@ -216,7 +215,7 @@ class InvestigatorService(CommissaireService):
 
         key.remove()
 
-        return host.to_json(secure=True)
+        return host.to_json()
 
 
 def main():  # pragma: no cover

@@ -104,8 +104,7 @@ class WatcherService(CommissaireService):
         try:
             response = self.request('storage.get', params={
                 'model_type_name': 'Host',
-                'model_json_data': Host.new(address=address).to_json(),
-                'secure': True,
+                'model_json_data': Host.new(address=address).to_json()
             })
             host = Host.new(**response['result'])
         except Exception as error:

@@ -106,8 +106,7 @@ class ClusterExecService(CommissaireService):
             cluster = Cluster.new(name=cluster_name)
             params = {
                 'model_type_name': cluster.__class__.__name__,
-                'model_json_data': cluster.to_json(),
-                'secure': True
+                'model_json_data': cluster.to_json()
             }
             response = self.request('storage.get', params=params)
             cluster = Cluster.new(**response['result'])
@@ -129,8 +128,7 @@ class ClusterExecService(CommissaireService):
                 host = Host.new(address=address)
                 params = {
                     'model_type_name': host.__class__.__name__,
-                    'model_json_data': host.to_json(),
-                    'secure': True
+                    'model_json_data': host.to_json()
                 }
                 response = self.request('storage.get', params=params)
                 host = Host.new(**response['result'])

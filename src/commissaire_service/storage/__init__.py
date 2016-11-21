@@ -148,9 +148,9 @@ class StorageService(CommissaireService):
         """
         model_instance = self._build_model(model_type_name, model_json_data)
         saved_model_instance = self._manager.save(model_instance)
-        return saved_model_instance.to_dict(secure=True)
+        return saved_model_instance.to_dict()
 
-    def on_get(self, message, model_type_name, model_json_data, secure=False):
+    def on_get(self, message, model_type_name, model_json_data):
         """
         Handler for the "storage.get" routing key.
 
@@ -163,14 +163,12 @@ class StorageService(CommissaireService):
         :type model_type_name: str
         :param model_json_data: JSON identification of a model
         :type model_json_data: dict or str
-        :param secure: If the resulting dict should include secure content.
-        :type secure: bool
         :returns: full dict representation of the model
         :rtype: dict
         """
         model_instance = self._build_model(model_type_name, model_json_data)
         full_model_instance = self._manager.get(model_instance)
-        return full_model_instance.to_dict(secure=secure)
+        return full_model_instance.to_dict()
 
     def on_delete(self, message, model_type_name, model_json_data):
         """
@@ -189,7 +187,7 @@ class StorageService(CommissaireService):
         model_instance = self._build_model(model_type_name, model_json_data)
         self._manager.delete(model_instance)
 
-    def on_list(self, message, model_type_name, secure=False):
+    def on_list(self, message, model_type_name):
         """
         Handler for the "storage.list" routing key.
 
@@ -199,15 +197,12 @@ class StorageService(CommissaireService):
         :type message: kombu.message.Message
         :param model_type_name: Model type for the JSON data
         :type model_type_name: str
-        :param secure: If the results should include secure content.
-        :type secure: bool
         :returns: a list of model representations as dicts
         :rtype: list
         """
         model_type = self._model_types[model_type_name]
         model_list = self._manager.list(model_type.new())
-        return [model_instance.to_dict(secure=secure)
-                for model_instance in model_list]
+        return [model_instance.to_dict() for model_instance in model_list]
 
     def on_list_store_handlers(self, message):
         """
