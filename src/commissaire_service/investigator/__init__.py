@@ -18,6 +18,7 @@ import json
 import commissaire.constants as C
 
 from commissaire.models import Cluster, Host, Network
+from commissaire.storage.client import StorageClient
 from commissaire.util.config import ConfigurationError
 from commissaire.util.date import formatted_dt
 from commissaire.util.ssh import TemporarySSHKey
@@ -45,6 +46,7 @@ class InvestigatorService(CommissaireService):
             {'routing_key': 'jobs.investigate'}
         ]
         super().__init__(exchange_name, connection_url, queue_kwargs)
+        self.storage = StorageClient(self)
 
     def _get_etcd_config(self):
         """
@@ -74,13 +76,7 @@ class InvestigatorService(CommissaireService):
         """
         try:
             cluster = Cluster.new(**cluster_data)
-            network = Network.new(name=cluster.network)
-            params = {
-                'model_type_name': network.__class__.__name__,
-                'model_json_data': network.to_json()
-            }
-            response = self.request('storage.get', params=params)
-            network = Network.new(**response['result'])
+            network = self.storage.get_network(cluster.network)
         except TypeError:
             cluster = Cluster.new(type=C.CLUSTER_TYPE_HOST)
             network = Network.new(**C.DEFAULT_CLUSTER_NETWORK_JSON)
@@ -106,19 +102,7 @@ class InvestigatorService(CommissaireService):
         if cluster_data:
             self.logger.debug('Related cluster: {}'.format(cluster_data))
 
-        try:
-            params = {
-                'model_type_name': 'Host',
-                'model_json_data': Host.new(address=address).to_json()
-            }
-            response = self.request('storage.get', params=params)
-            host = Host.new(**response['result'])
-        except Exception as error:
-            self.logger.warn(
-                'Unable to continue for {} due to '
-                '{}: {}. Returning...'.format(address, type(error), error))
-            raise error
-
+        host = self.storage.get_host(address)
         transport = ansibleapi.Transport(host.remote_user)
 
         key = TemporarySSHKey(host, self.logger)
@@ -148,11 +132,7 @@ class InvestigatorService(CommissaireService):
             raise error
         finally:
             # Save the updated host model.
-            params = {
-                'model_type_name': host.__class__.__name__,
-                'model_json_data': host.to_json()
-            }
-            self.request('storage.save', params=params)
+            self.storage.save(host)
 
         self.logger.info(
             'Finished and stored investigation data for {}'.format(address))
@@ -188,11 +168,7 @@ class InvestigatorService(CommissaireService):
             raise error
         finally:
             # Save the updated host model.
-            params = {
-                'model_type_name': host.__class__.__name__,
-                'model_json_data': host.to_json()
-            }
-            self.request('storage.save', params=params)
+            self.storage.save(host)
 
         # Verify association with relevant container managers
         # FIXME Adapt this for ContainerManagerConfig.

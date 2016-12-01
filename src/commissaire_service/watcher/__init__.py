@@ -22,7 +22,8 @@ from datetime import datetime, timedelta
 from time import sleep
 
 from commissaire import constants as C
-from commissaire.models import Host, WatcherRecord
+from commissaire.models import WatcherRecord
+from commissaire.storage.client import StorageClient
 from commissaire.util.date import formatted_dt
 from commissaire.util.ssh import TemporarySSHKey
 
@@ -52,6 +53,7 @@ class WatcherService(CommissaireService):
         # Store the last address seen for backoff
         self.last_address = None
         super().__init__(exchange_name, connection_url, queue_kwargs)
+        self.storage = StorageClient(self)
 
     def on_message(self, body, message):
         """
@@ -101,18 +103,8 @@ class WatcherService(CommissaireService):
         # http://commissaire.readthedocs.org/en/latest/enums.html#host-statuses
 
         self.logger.info('Checking host "{}".'.format(address))
-        try:
-            response = self.request('storage.get', params={
-                'model_type_name': 'Host',
-                'model_json_data': Host.new(address=address).to_json()
-            })
-            host = Host.new(**response['result'])
-        except Exception as error:
-            self.logger.warn(
-                'Unable to continue for host "{}" due to '
-                '{}: {}. Returning...'.format(address, type(error), error))
-            raise error
 
+        host = self.storage.get_host(address)
         transport = ansibleapi.Transport(host.remote_user)
 
         with TemporarySSHKey(host, self.logger) as key:
@@ -133,10 +125,7 @@ class WatcherService(CommissaireService):
                 raise error
             finally:
                 # Save the model
-                self.request('storage.save', params={
-                    'model_type_name': host.__class__.__name__,
-                    'model_json_data': host.to_json(),
-                })
+                self.storage.save(host)
             self.logger.info(
                 'Finished watcher run for host "{}"'.format(address))
 

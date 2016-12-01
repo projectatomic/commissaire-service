@@ -16,7 +16,8 @@
 import json
 
 from commissaire.models import (
-    ClusterDeploy, ClusterUpgrade, ClusterRestart, Cluster, Host)
+    ClusterDeploy, ClusterUpgrade, ClusterRestart)
+from commissaire.storage.client import StorageClient
 from commissaire.util.date import formatted_dt
 from commissaire.util.ssh import TemporarySSHKey
 
@@ -43,6 +44,7 @@ class ClusterExecService(CommissaireService):
             {'routing_key': 'jobs.clusterexec.*'}
         ]
         super().__init__(exchange_name, connection_url, queue_kwargs)
+        self.storage = StorageClient(self)
 
     def _execute(self, message, model_instance, command_args,
                  finished_hosts_key):
@@ -76,11 +78,7 @@ class ClusterExecService(CommissaireService):
             # Set the initial status in the store.
             self.logger.info('Setting initial status.')
             self.logger.debug('Status={}'.format(model_json_data))
-            params = {
-                'model_type_name': model_instance.__class__.__name__,
-                'model_json_data': model_json_data
-            }
-            self.request('storage.save', params=params)
+            self.storage.save(model_instance)
 
             # Respond to the caller with the initial status.
             if message.properties.get('reply_to'):
@@ -102,19 +100,7 @@ class ClusterExecService(CommissaireService):
 
         # Collect all host addresses in the cluster.
 
-        try:
-            cluster = Cluster.new(name=cluster_name)
-            params = {
-                'model_type_name': cluster.__class__.__name__,
-                'model_json_data': cluster.to_json()
-            }
-            response = self.request('storage.get', params=params)
-            cluster = Cluster.new(**response['result'])
-        except Exception as error:
-            self.logger.warn(
-                'Unable to continue for cluster "{}" due to '
-                '{}: {}'.format(cluster_name, type(error), error))
-            raise error
+        cluster = self.storage.get_cluster(cluster_name)
 
         n_hosts = len(cluster.hostset)
         if n_hosts:
@@ -124,19 +110,7 @@ class ClusterExecService(CommissaireService):
             self.logger.warn('No hosts in cluster "{}"'.format(cluster_name))
 
         for address in cluster.hostset:
-            try:
-                host = Host.new(address=address)
-                params = {
-                    'model_type_name': host.__class__.__name__,
-                    'model_json_data': host.to_json()
-                }
-                response = self.request('storage.get', params=params)
-                host = Host.new(**response['result'])
-            except Exception as error:
-                self.logger.warn(
-                    'Unable to get host info for "{}" due to '
-                    '{}: {}'.format(address, type(error), error))
-                raise error
+            host = self.storage.get_host(address)
 
             oscmd = get_oscmd(host.os)
 
@@ -146,17 +120,7 @@ class ClusterExecService(CommissaireService):
                 os_command, host.address))
 
             model_instance.in_process.append(host.address)
-            try:
-                params = {
-                    'model_type_name': model_instance.__class__.__name__,
-                    'model_json_data': model_instance.to_json()
-                }
-                self.request('storage.save', params=params)
-            except Exception as error:
-                self.logger.error(
-                    'Unable to save in_process state for "{}" clusterexec '
-                    'due to {}: {}'.format(cluster_name, type(error), error))
-                raise error
+            self.storage.save(model_instance)
 
             with TemporarySSHKey(host, self.logger) as key:
                 try:
@@ -181,17 +145,7 @@ class ClusterExecService(CommissaireService):
                 self.logger.warn(
                     'Host {} was not in_process for {} {}'.format(
                         host.address, command_name, cluster_name))
-            try:
-                params = {
-                    'model_type_name': model_instance.__class__.__name__,
-                    'model_json_data': model_instance.to_json()
-                }
-                self.request('storage.save', params=params)
-            except Exception as error:
-                self.logger.error(
-                    'Unable to save cluster state for "{}" clusterexec '
-                    'due to {}: {}'.format(cluster_name, type(error), error))
-                raise error
+            self.storage.save(model_instance)
 
             self.logger.info(
                 'Finished executing {} for {} in {}'.format(
@@ -206,16 +160,7 @@ class ClusterExecService(CommissaireService):
             'Cluster {} final {} status: {}'.format(
                 cluster_name, command_name, model_instance.to_json()))
 
-        try:
-            params = {
-                'model_type_name': model_instance.__class__.__name__,
-                'model_json_data': model_instance.to_json()
-            }
-            self.request('storage.save', params=params)
-        except Exception as error:
-            self.logger.error(
-                'Unable to save final state for "{}" clusterexec '
-                'due to {}: {}'.format(cluster_name, type(error), error))
+        self.storage.save(model_instance)
 
     def on_upgrade(self, message, cluster_name):
         """

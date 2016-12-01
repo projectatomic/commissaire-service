@@ -122,18 +122,13 @@ class TestCommissaireService(TestCase):
                 'commissaire_service.transport.ansibleapi.Transport') as _transport:
             transport = _transport()
 
-            self.service_instance.request = mock.MagicMock(
-                side_effect=(
-                    # Getting the host
-                    {'result': {
-                        'address': '127.0.0.1',
-                        'last_check': datetime.datetime.min.isoformat()
-                    }},
-                    # The save
-                    None))
+            self.service_instance.storage = mock.MagicMock()
+            self.service_instance.storage.get_host.return_value = models.Host.new(
+                address='127.0.0.1',
+                last_check=datetime.datetime.min.isoformat())
+            self.service_instance.storage.save.return_value = None
             self.service_instance._check('127.0.0.1')
             # The transport method should have been called once
             self.assertEquals(1, transport.check_host_availability.call_count)
-            # Verify the last request was a save
-            self.service_instance.request.assert_called_with(
-                'storage.save', params=mock.ANY)
+            # Verify 'storage.save' got called
+            self.service_instance.storage.save.assert_called_with(mock.ANY)
