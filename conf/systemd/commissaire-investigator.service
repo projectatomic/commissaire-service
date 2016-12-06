@@ -1,9 +1,13 @@
 [Unit]
 Description=Commissaire Investigator Service
 Documentation=https://commissaire.readthedocs.io/
-After=network.target
+After=commissaire-storage.service
+Requires=commissaire-storage.service
 
 [Service]
 ExecStart=/usr/bin/commissaire-investigator-service
 PIDFile=/var/run/commissaire-investigator-service.pid
 Type=simple
+
+[Install]
+WantedBy=multi-user.target

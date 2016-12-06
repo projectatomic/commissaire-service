@@ -1,12 +1,12 @@
 [Unit]
-Description=Commissaire Watcher Service
+Description=Commissaire Cluster Execution Service
 Documentation=https://commissaire.readthedocs.io/
 After=commissaire-storage.service
 Requires=commissaire-storage.service
 
 [Service]
-ExecStart=/usr/bin/commissaire-watcher-service
-PIDFile=/var/run/commissaire-watcher-service.pid
+ExecStart=/usr/bin/commissaire-clusterexec-service
+PIDFile=/var/run/commissaire-clusterexec-service.pid
 Type=simple
 
 [Install]

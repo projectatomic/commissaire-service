@@ -7,3 +7,6 @@ After=network.target
 ExecStart=/usr/bin/commissaire-storage-service -c /etc/commisasire/storage.conf
 PIDFile=/var/run/commissaire-storage-service.pid
 Type=simple
+
+[Install]
+WantedBy=multi-user.target
