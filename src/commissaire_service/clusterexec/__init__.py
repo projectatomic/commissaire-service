@@ -73,7 +73,7 @@ class ClusterExecService(CommissaireService):
 
         try:
             assert cluster_name is not None
-            model_json_data = model_instance.to_json()
+            model_json_data = model_instance.to_dict()
 
             # Set the initial status in the store.
             self.logger.info('Setting initial status.')
