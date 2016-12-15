@@ -18,6 +18,7 @@ import json
 from commissaire.models import (
     ClusterDeploy, ClusterUpgrade, ClusterRestart)
 from commissaire.storage.client import StorageClient
+from commissaire.util.config import read_config_file
 from commissaire.util.date import formatted_dt
 from commissaire.util.ssh import TemporarySSHKey
 
@@ -31,20 +32,26 @@ class ClusterExecService(CommissaireService):
     Executes operations over a cluster by way of remote shell commands.
     """
 
-    def __init__(self, exchange_name, connection_url):
+    def __init__(self, exchange_name, connection_url, config_file=None):
         """
-        Creates a new ClusterExecService.
+        Creates a new ClusterExecService.  If config_file is omitted,
+        it will try the default location (/etc/commissaire/clusterexec.conf).
 
         :param exchange_name: Name of the topic exchange
         :type exchange_name: str
         :param connection_url: Kombu connection URL
         :type connection_url: str
+        :param config_file: Optional configuration file path
+        :type config_file: str or None
         """
         queue_kwargs = [
             {'routing_key': 'jobs.clusterexec.*'}
         ]
         super().__init__(exchange_name, connection_url, queue_kwargs)
         self.storage = StorageClient(self)
+
+        # Apply any logging configuration for this service.
+        read_config_file(config_file, '/etc/commissaire/clusterexec.conf')
 
     def _execute(self, message, model_instance, command_args,
                  finished_hosts_key):
@@ -256,7 +263,8 @@ def main():  # pragma: no cover
     try:
         service = ClusterExecService(
             exchange_name=args.bus_exchange,
-            connection_url=args.bus_uri)
+            connection_url=args.bus_uri,
+            config_file=args.config)
         service.run()
     except KeyboardInterrupt:
         pass

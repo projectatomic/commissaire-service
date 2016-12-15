@@ -24,6 +24,7 @@ from time import sleep
 from commissaire import constants as C
 from commissaire.models import WatcherRecord
 from commissaire.storage.client import StorageClient
+from commissaire.util.config import read_config_file
 from commissaire.util.date import formatted_dt
 from commissaire.util.ssh import TemporarySSHKey
 
@@ -36,14 +37,17 @@ class WatcherService(CommissaireService):
     Periodically connects to hosts to check their status.
     """
 
-    def __init__(self, exchange_name, connection_url):
+    def __init__(self, exchange_name, connection_url, config_file=None):
         """
-        Creates a new WatcherService.
+        Creates a new WatcherService.  If config_file is omitted,
+        it will try the default location (/etc/commissaire/watcher.conf).
 
         :param exchange_name: Name of the topic exchange
         :type exchange_name: str
         :param connection_url: Kombu connection URL
         :type connection_url: str
+        :param config_file: Optional configuration file path
+        :type config_file: str or None
         """
         queue_kwargs = [{
             'name': 'watcher',
@@ -54,6 +58,9 @@ class WatcherService(CommissaireService):
         self.last_address = None
         super().__init__(exchange_name, connection_url, queue_kwargs)
         self.storage = StorageClient(self)
+
+        # Apply any logging configuration for this service.
+        read_config_file(config_file, '/etc/commissaire/watcher.conf')
 
     def on_message(self, body, message):
         """
@@ -138,6 +145,9 @@ def main():  # pragma: no cover
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        '-c', '--config', type=str,
+        help='Configuration file to use.')
+    parser.add_argument(
         '--bus-exchange', type=str, default='commissaire',
         help='Message bus exchange name.')
     parser.add_argument(
@@ -153,7 +163,8 @@ def main():  # pragma: no cover
     try:
         service = WatcherService(
             exchange_name=args.bus_exchange,
-            connection_url=args.bus_uri)
+            connection_url=args.bus_uri,
+            config_file=args.config)
         service.run()
     except KeyboardInterrupt:
         pass

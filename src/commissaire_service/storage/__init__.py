@@ -36,7 +36,7 @@ class StorageService(CommissaireService):
         """
         Creates a new StorageService and sets up StoreHandler instances
         according to the config_file.  If config_file is omitted, it will
-        try the default location (/etc/commissaire/commissaire.conf).
+        try the default location (/etc/commissaire/storage.conf).
 
         :param exchange_name: Name of the topic exchange
         :type exchange_name: str

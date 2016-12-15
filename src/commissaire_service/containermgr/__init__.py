@@ -32,7 +32,7 @@ class ContainerManagerService(CommissaireService):
         """
         Creates a new ContainerManagerService and sets up ContainerHandler
         instances according to the config_file.  If config_file is omitted,
-        it will try the default location (/etc/commissaire/commissaire.conf).
+        it will try the default location (/etc/commissaire/containermgr.conf).
 
         :param exchange_name: Name of the topic exchange
         :type exchange_name: str
