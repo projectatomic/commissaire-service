@@ -24,7 +24,7 @@ import traceback
 from time import sleep
 
 from commissaire import constants as C
-from commissaire.bus import BusMixin
+from commissaire.bus import BusMixin, StorageLookupError
 
 from kombu import Connection, Exchange, Producer, Queue
 from kombu.mixins import ConsumerMixin
@@ -213,23 +213,30 @@ class CommissaireService(ConsumerMixin, BusMixin):
                     'Dropping unknown message: payload="{}", '
                     'properties="{}"'.format(body, message.properties))
         except Exception as error:
-            jsonrpc_error_code = C.JSONRPC_ERRORS['INVALID_REQUEST']
-            # If there is an attribute error then use the Method Not Found
-            # code in the error response
-            if type(error) is AttributeError:
-                jsonrpc_error_code = C.JSONRPC_ERRORS['METHOD_NOT_FOUND']
-            elif type(error) is json.decoder.JSONDecodeError:
-                jsonrpc_error_code = C.JSONRPC_ERRORS['INVALID_JSON']
-            response['error'] = {
-                'code': jsonrpc_error_code,
-                'message': str(error),
-                'data': {
-                    'exception': str(type(error))
+            if isinstance(error, StorageLookupError):
+                response['error'] = {
+                    'code': error.code,
+                    'message': str(error),
+                    'data': error.data
                 }
-            }
-            self.logger.warn(
-                'Exception raised during method call:\n{}'.format(
-                    traceback.format_exc()))
+            else:
+                jsonrpc_error_code = C.JSONRPC_ERRORS['INVALID_REQUEST']
+                # If there is an attribute error then use the Method Not Found
+                # code in the error response
+                if type(error) is AttributeError:
+                    jsonrpc_error_code = C.JSONRPC_ERRORS['METHOD_NOT_FOUND']
+                elif type(error) is json.decoder.JSONDecodeError:
+                    jsonrpc_error_code = C.JSONRPC_ERRORS['INVALID_JSON']
+                response['error'] = {
+                    'code': jsonrpc_error_code,
+                    'message': str(error),
+                    'data': {
+                        'exception': str(type(error))
+                    }
+                }
+                self.logger.warn(
+                    'Exception raised during method call:\n{}'.format(
+                        traceback.format_exc()))
 
         # Reply back if needed
         if message.properties.get('reply_to'):
