@@ -23,6 +23,7 @@ import traceback
 
 from time import sleep
 
+from commissaire import constants as C
 from commissaire.bus import BusMixin
 
 from kombu import Connection, Exchange, Producer, Queue
@@ -212,13 +213,13 @@ class CommissaireService(ConsumerMixin, BusMixin):
                     'Dropping unknown message: payload="{}", '
                     'properties="{}"'.format(body, message.properties))
         except Exception as error:
-            jsonrpc_error_code = -32600
+            jsonrpc_error_code = C.JSONRPC_ERRORS['INVALID_REQUEST']
             # If there is an attribute error then use the Method Not Found
             # code in the error response
             if type(error) is AttributeError:
-                jsonrpc_error_code = -32601
+                jsonrpc_error_code = C.JSONRPC_ERRORS['METHOD_NOT_FOUND']
             elif type(error) is json.decoder.JSONDecodeError:
-                jsonrpc_error_code = -32700  # Parser error
+                jsonrpc_error_code = C.JSONRPC_ERRORS['INVALID_JSON']
             response['error'] = {
                 'code': jsonrpc_error_code,
                 'message': str(error),
