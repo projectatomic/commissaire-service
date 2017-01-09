@@ -30,6 +30,33 @@ from kombu import Connection, Exchange, Producer, Queue
 from kombu.mixins import ConsumerMixin
 
 
+def add_service_arguments(parser):
+    """
+    Adds command-line arguments common to all Commissaire services.
+
+    These include:
+
+        --config-file   (string, no default)
+        --bus-exchange  (string, with default)
+        --bus-uri       (string, with default)
+
+    :param parser: An argument parser instance
+    :type parser: argparse.ArgumentParser
+    """
+    parser.add_argument(
+        '--config-file', '-c', type=str,
+        help='Configuration file to use.')
+    parser.add_argument(
+        '--bus-exchange', type=str, default='commissaire',
+        help='Message bus exchange name.')
+    parser.add_argument(
+        '--bus-uri', type=str, metavar='BUS_URI',
+        default='redis://127.0.0.1:6379/',  # FIXME Remove before release
+        help=(
+            'Message bus connection URI. See: '
+            'http://kombu.readthedocs.io/en/latest/userguide/connections.html'))  # noqa
+
+
 def run_service(service_class, kwargs):
     """
     Creates a service instance and executes it's run method.

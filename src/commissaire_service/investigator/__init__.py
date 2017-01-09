@@ -24,7 +24,8 @@ from commissaire.util.date import formatted_dt
 from commissaire.util.ssh import TemporarySSHKey
 
 from commissaire_service.oscmd import get_oscmd
-from commissaire_service.service import CommissaireService
+from commissaire_service.service import (
+    CommissaireService, add_service_arguments)
 from commissaire_service.transport import ansibleapi
 
 
@@ -207,19 +208,7 @@ def main():  # pragma: no cover
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '-c', '--config', type=str,
-        help='Configuration file to use.')
-    parser.add_argument(
-        '--bus-exchange', type=str, default='commissaire',
-        help='Message bus exchange name.')
-    parser.add_argument(
-        '--bus-uri', type=str, metavar='BUS_URI',
-        default='redis://127.0.0.1:6379/',  # FIXME Remove before release
-        help=(
-            'Message bus connection URI. See:'
-            'http://kombu.readthedocs.io/en/latest/userguide/connections.html')
-    )
+    add_service_arguments(parser)
 
     args = parser.parse_args()
 
