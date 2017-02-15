@@ -13,10 +13,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import importlib
-
-from commissaire.containermgr import ContainerManagerError
-from commissaire.util.config import ConfigurationError, read_config_file
+from commissaire.containermgr import (
+    ContainerManagerBase, ContainerManagerError)
+from commissaire.util.config import (
+    ConfigurationError, read_config_file, import_plugin)
 
 from commissaire_service.service import (
     CommissaireService, add_service_arguments)
@@ -79,13 +79,8 @@ class ContainerManagerService(CommissaireService):
             raise ConfigurationError(
                 'Container handler configuration missing "{}" key: '
                 '{}'.format(error, config))
-        try:
-            module = importlib.import_module(module_name)
-            handler_type = getattr(module, 'ContainerHandler')
-        except ImportError:
-            raise ConfigurationError(
-                'Invalid container handler module name: {}'.format(
-                    module_name))
+        handler_type = import_plugin(
+            module_name, 'commissaire.containermgr', ContainerManagerBase)
 
         self._manager.register(handler_type, config)
 

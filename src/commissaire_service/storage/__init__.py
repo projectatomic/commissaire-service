@@ -14,13 +14,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import fnmatch
-import importlib
 import json
 
 import commissaire.models as models
 
 from commissaire import constants as C
-from commissaire.util.config import ConfigurationError, read_config_file
+from commissaire.storage import StoreHandlerBase
+from commissaire.util.config import (
+    ConfigurationError, read_config_file, import_plugin)
 
 from commissaire_service.service import (
     CommissaireService, add_service_arguments)
@@ -90,12 +91,8 @@ class StorageService(CommissaireService):
             raise ConfigurationError(
                 'Store handler configuration missing "name" key: '
                 '{}'.format(config))
-        try:
-            module = importlib.import_module(module_name)
-            handler_type = getattr(module, 'StoreHandler')
-        except ImportError:
-            raise ConfigurationError(
-                'Invalid store handler module name: {}'.format(module_name))
+        handler_type = import_plugin(
+            module_name, 'commissaire.storage', StoreHandlerBase)
 
         # Match model types to type name patterns.
         matched_types = set()

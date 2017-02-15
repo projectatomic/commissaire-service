@@ -19,7 +19,7 @@ Tests for commissaire_service.service.containermgr.ContainerManagerService.
 from . import TestCase, mock
 
 from commissaire_service.containermgr import ContainerManagerService
-from commissaire.containermgr.kubernetes import ContainerHandler
+from commissaire.containermgr.kubernetes import PluginClass
 
 
 class TestContainerManagerService(TestCase):
@@ -73,7 +73,7 @@ class TestContainerManagerService(TestCase):
         self.assertIn(name, self.service_instance._manager.handlers)
         self.assertIsInstance(
             self.service_instance._manager.handlers[name],
-            ContainerHandler)
+            PluginClass)
 
     def test_on_list_handler_when_empty(self):
         """
@@ -93,7 +93,7 @@ class TestContainerManagerService(TestCase):
         Verify ContainerManagerService.on_list_handlers returns a handler when one has been registered.
         """
         self.service_instance._manager._handlers = {
-            'test': ContainerHandler(config={
+            'test': PluginClass(config={
                 'server_url':'https://127.0.0.1:8080/'})}
 
         message = mock.MagicMock(
