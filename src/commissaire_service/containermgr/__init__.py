@@ -50,14 +50,8 @@ class ContainerManagerService(CommissaireService):
         super().__init__(exchange_name, connection_url, queue_kwargs)
         self._manager = ContainerHandlerManager()
 
-        config_data = read_config_file(
-            config_file, '/etc/commissaire/containermgr.conf')
-        container_handlers = config_data.get('container_handlers', [])
-
-        if len(container_handlers) == 0:
-            self.logger.info('No ContainerManagerHandlers were provided.')
-        for config in container_handlers:
-            self.register(config)
+        # Apply any logging configuration for this service.
+        read_config_file(config_file, '/etc/commissaire/containermgr.conf')
 
     def register(self, config):
         """
