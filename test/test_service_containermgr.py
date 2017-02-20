@@ -75,37 +75,6 @@ class TestContainerManagerService(TestCase):
             self.service_instance._manager.handlers[name],
             PluginClass)
 
-    def test_on_list_handler_when_empty(self):
-        """
-        Verify ContainerManagerService.on_list_handlers returns an empty list by default.
-        """
-        message = mock.MagicMock(
-            payload='',
-            delivery_info={
-                'routing_key': 'container.list_handlers'})
-
-        result = self.service_instance.on_list_handlers(message)
-        # There should be no handlers by default
-        self.assertEquals([], result)
-
-    def test_on_list_handler_with_handler(self):
-        """
-        Verify ContainerManagerService.on_list_handlers returns a handler when one has been registered.
-        """
-        self.service_instance._manager._handlers = {
-            'test': PluginClass(config={
-                'server_url':'https://127.0.0.1:8080/'})}
-
-        message = mock.MagicMock(
-            payload='',
-            delivery_info={
-                'routing_key': 'container.list_handlers'})
-
-        result = self.service_instance.on_list_handlers(message)
-        # There should be no handlers by default
-        self.assertEquals([{
-            'name': 'test', 'handler_type': 'KubeContainerManager'}], result)
-
     def test_on_node_registered(self):
         """
         Verify ContainerManagerService.on_node_registered returns proper data.

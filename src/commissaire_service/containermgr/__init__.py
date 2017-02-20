@@ -78,28 +78,6 @@ class ContainerManagerService(CommissaireService):
 
         self._manager.register(handler_type, config)
 
-    def on_list_handlers(self, message):
-        """
-        Handler for the "container.list_handlers" routing key.
-
-        Returns a list of registered container handlers as dictionaries.
-        Each dictionary contains the following:
-
-           'name'         : The name of the container handler
-           'handler_type' : Type type of the container handler
-           'config'       : Dictionary of configuration values
-
-        :param message: A message instance
-        :type message: kombu.message.Message
-        """
-        result = []
-        for name, handler in self._manager.handlers.items():
-            result.append({
-                'name': name,
-                'handler_type': handler.__class__.__name__,
-            })
-        return result
-
     def on_node_registered(self, message, container_handler_name, address):
         """
         Checks if a node is registered to a specific container manager.
