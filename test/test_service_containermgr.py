@@ -18,8 +18,10 @@ Tests for commissaire_service.service.containermgr.ContainerManagerService.
 
 from . import TestCase, mock
 
+import commissaire.constants as C
+
+from commissaire.models import ContainerManagerConfig, ContainerManagerConfigs
 from commissaire_service.containermgr import ContainerManagerService
-from commissaire.containermgr.kubernetes import PluginClass
 
 
 class TestContainerManagerService(TestCase):
@@ -58,27 +60,56 @@ class TestContainerManagerService(TestCase):
         self._exchange.stop()
         self._producer.stop()
 
-    def test_register(self):
+    def test_refresh_managers(self):
         """
-        Verify ContainerManagerService.register can properly register handlers.
+        Verify ContainerManagerService.refresh_managers works correctly
         """
-        name = 'test'
-        self.service_instance.register({
-                'name': name,
-                'handler':'commissaire.containermgr.kubernetes',
-                'server_url': 'https://127.0.0.1:8080/'
-            })
-        # There should be 1 handler of the imported ContainerHandler type
-        self.assertEquals(1, len(self.service_instance._manager.handlers))
-        self.assertIn(name, self.service_instance._manager.handlers)
-        self.assertIsInstance(
-            self.service_instance._manager.handlers[name],
-            PluginClass)
+        configs = ContainerManagerConfigs.new()
+        self.service_instance.storage.list = mock.MagicMock()
+        self.service_instance.storage.list.return_value = configs
+
+        # Create a container manager instance.
+        cmc = ContainerManagerConfig(
+            name='1st',
+            type=C.CONTAINER_MANAGER_OPENSHIFT,
+            options={'server_url': 'http://1.1.1.1'})
+        configs.container_managers.append(cmc)
+        self.service_instance.refresh_managers()
+        self.assertIn('1st', self.service_instance.managers)
+        self.assertEqual(len(self.service_instance.managers), 1)
+
+        cm_1st = self.service_instance.managers['1st']
+
+        # Create a 2nd container manager instance.
+        cmc = ContainerManagerConfig(
+            name='2nd',
+            type=C.CONTAINER_MANAGER_OPENSHIFT,
+            options={'server_url': 'http://2.2.2.2'})
+        configs.container_managers.append(cmc)
+        self.service_instance.refresh_managers()
+        self.assertIn('1st', self.service_instance.managers)
+        self.assertIn('2nd', self.service_instance.managers)
+        self.assertEqual(len(self.service_instance.managers), 2)
+
+        # Verify the 1st container manager instance was preserved.
+        self.assertIs(cm_1st, self.service_instance.managers['1st'])
+
+        # Remove the 2nd container manager instance.
+        del configs.container_managers[-1]
+        self.service_instance.refresh_managers()
+        self.assertIn('1st', self.service_instance.managers)
+        self.assertNotIn('2nd', self.service_instance.managers)
+        self.assertEqual(len(self.service_instance.managers), 1)
+
+        # Verify the 1st container manager instance was preserved.
+        self.assertIs(cm_1st, self.service_instance.managers['1st'])
 
     def test_on_node_registered(self):
         """
         Verify ContainerManagerService.on_node_registered returns proper data.
         """
+        self.service_instance.refresh_managers = mock.MagicMock()
+
         message = mock.MagicMock(
             payload='',
             delivery_info={
@@ -87,7 +118,7 @@ class TestContainerManagerService(TestCase):
         for code, result in ((200, True), (404, False)):
             ch = mock.MagicMock()
             ch.node_registered.return_value = result
-            self.service_instance._manager._handlers = {'test': ch}
+            self.service_instance.managers = {'test': ch}
 
             self.assertEquals(
                 result,
@@ -98,6 +129,8 @@ class TestContainerManagerService(TestCase):
         """
         Verify on_register/remove_node responds properly.
         """
+        self.service_instance.refresh_managers = mock.MagicMock()
+
         for method in ('register_node', 'remove_node'):
             message = mock.MagicMock(
                 payload='',
@@ -107,7 +140,7 @@ class TestContainerManagerService(TestCase):
             for code, result in ((201, True), (404, False)):
                 ch = mock.MagicMock()
                 getattr(ch, method).return_value = result
-                self.service_instance._manager._handlers = {'test': ch}
+                self.service_instance.managers = {'test': ch}
 
                 self.assertEquals(
                     result,
@@ -118,6 +151,8 @@ class TestContainerManagerService(TestCase):
         """
         Verify on_register/remove_node handle exceptions.
         """
+        self.service_instance.refresh_managers = mock.MagicMock()
+
         for method in ('register_node', 'remove_node'):
             message = mock.MagicMock(
                 payload='',
@@ -129,7 +164,7 @@ class TestContainerManagerService(TestCase):
                 # raised, but it is in the correct block
                 ch = mock.MagicMock()
                 getattr(ch, method).side_effect = exc
-                self.service_instance._manager._handlers = {'test': ch}
+                self.service_instance.managers = {'test': ch}
 
                 self.assertEquals(
                     False,
@@ -140,6 +175,8 @@ class TestContainerManagerService(TestCase):
         """
         Verify ContainerManagerService.get_node_status returns proper data on success.
         """
+        self.service_instance.refresh_managers = mock.MagicMock()
+
         message = mock.MagicMock(
             payload='',
             delivery_info={
@@ -148,7 +185,7 @@ class TestContainerManagerService(TestCase):
         expected = {'test': 'test'}
         ch = mock.MagicMock()
         ch.get_node_status.return_value = expected
-        self.service_instance._manager._handlers = {'test': ch}
+        self.service_instance.managers = {'test': ch}
 
         self.assertEquals(
             expected,
@@ -159,6 +196,8 @@ class TestContainerManagerService(TestCase):
         """
         Verify ContainerManagerService.get_node_status returns proper data on failure.
         """
+        self.service_instance.refresh_managers = mock.MagicMock()
+
         message = mock.MagicMock(
             payload='',
             delivery_info={
@@ -166,7 +205,7 @@ class TestContainerManagerService(TestCase):
 
         ch = mock.MagicMock()
         ch.get_node_status.side_effect = Exception
-        self.service_instance._manager._handlers = {'test': ch}
+        self.service_instance.managers = {'test': ch}
 
         self.assertRaises(
             Exception,

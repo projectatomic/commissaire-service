@@ -13,15 +13,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from commissaire import models
+
 from commissaire.containermgr import (
     ContainerManagerBase, ContainerManagerError)
-from commissaire.util.config import (
-    ConfigurationError, read_config_file, import_plugin)
+from commissaire.storage.client import StorageClient
+from commissaire.util.config import read_config_file, import_plugin
 
 from commissaire_service.service import (
     CommissaireService, add_service_arguments)
-from commissaire_service.containermgr.containerhandlermanager import (
-    ContainerHandlerManager)
 
 
 class ContainerManagerService(CommissaireService):
@@ -48,35 +48,37 @@ class ContainerManagerService(CommissaireService):
             'exclusive': False,
         }]
         super().__init__(exchange_name, connection_url, queue_kwargs)
-        self._manager = ContainerHandlerManager()
+        self.storage = StorageClient(self)
+        self.managers = {}
 
         # Apply any logging configuration for this service.
         read_config_file(config_file, '/etc/commissaire/containermgr.conf')
 
-    def register(self, config):
+    def refresh_managers(self):
         """
-        Registers a new container handler type after extracting and validating
-        information required for registration from the configuration data.
+        Fetches all ContainerManagerConfig records from the storage service,
+        and instantiates the corresponding container manager plugins.
 
-        :param config: A configuration dictionary
-        :type config: dict
+        This tries to reuse compatible container manager instances from
+        previous calls to try and preserve any internal state.
+
+        :raises ConfigurationError: on an invalid ContainerManagerConfig
         """
-        if type(config) is not dict:
-            raise ConfigurationError(
-                'Store handler format must be a JSON object, got a '
-                '{} instead: {}'.format(type(config).__name__, config))
-
-        # Import the handler class.
-        try:
-            module_name = config.pop('handler')
-        except KeyError as error:
-            raise ConfigurationError(
-                'Container handler configuration missing "{}" key: '
-                '{}'.format(error, config))
-        handler_type = import_plugin(
-            module_name, 'commissaire.containermgr', ContainerManagerBase)
-
-        self._manager.register(handler_type, config)
+        current_managers = {}
+        container = self.storage.list(models.ContainerManagerConfigs)
+        for config in container.container_managers:
+            # This will raise ConfigurationError if the import fails.
+            manager_type = import_plugin(
+                config.type, 'commissaire.containermgr', ContainerManagerBase)
+            manager = self.managers.pop(config.name, None)
+            if isinstance(manager, manager_type):
+                # If there's already a compatible manager, reuse it.
+                # XXX Manager instances may not keep their option
+                #     dictionary so we can't detect option changes.
+                current_managers[config.name] = manager
+            else:
+                current_managers[config.name] = manager_type(config.options)
+        self.managers = current_managers
 
     def on_node_registered(self, message, container_handler_name, address):
         """
@@ -140,7 +142,8 @@ class ContainerManagerService(CommissaireService):
         :rtype: bool
         """
         try:
-            container_handler = self._manager.handlers[container_handler_name]
+            self.refresh_managers()
+            container_handler = self.managers[container_handler_name]
             result = getattr(container_handler, method).__call__(address)
 
             self.logger.info(
