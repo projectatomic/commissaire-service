@@ -177,16 +177,24 @@ class InvestigatorService(CommissaireService):
             # Save the updated host model.
             self.storage.save(host)
 
-        # Verify association with relevant container managers
-        # FIXME Adapt this for ContainerManagerConfig.
-        # params = {
-        #     'cluster_type': cluster.type,
-        #     'address': address
-        # }
-        # response = self.request('storage.node_registered', params=params)
-        # if response['result']:
-        #     host.status = 'active'
-        host.status = 'disassociated'  # XXX Temporary hack.
+        # Register with container manager (if applicable).
+        try:
+            host.status = 'disassociated'
+            if cluster.container_manager:
+                response = self.request(
+                    'container.register_node',
+                    cluster.container_manager, address)
+                if response['result']:
+                    host.status = 'active'
+        except Exception as error:
+            self.logger.warn(
+                'Unable to register {} to container manager "{}": {}'.format(
+                    address, cluster.container_manager, error.args[0]))
+            key.remove()
+            raise error
+        finally:
+            # Save the updated host model.
+            self.storage.save(host)
 
         self.logger.info(
             'Finished bootstrapping for {}'.format(address))
