@@ -181,11 +181,10 @@ class InvestigatorService(CommissaireService):
         try:
             host.status = 'disassociated'
             if cluster.container_manager:
-                response = self.request(
+                self.request(
                     'container.register_node',
                     cluster.container_manager, address)
-                if response['result']:
-                    host.status = 'active'
+                host.status = 'active'
         except Exception as error:
             self.logger.warn(
                 'Unable to register {} to container manager "{}": {}'.format(

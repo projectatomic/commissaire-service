@@ -21,6 +21,7 @@ from . import TestCase, mock
 import commissaire.constants as C
 
 from commissaire.models import ContainerManagerConfig, ContainerManagerConfigs
+from commissaire.containermgr import ContainerManagerError
 from commissaire_service.containermgr import ContainerManagerService
 
 
@@ -115,15 +116,13 @@ class TestContainerManagerService(TestCase):
             delivery_info={
             'routing_key': 'container.node_registered'})
 
-        for code, result in ((200, True), (404, False)):
-            ch = mock.MagicMock()
-            ch.node_registered.return_value = result
-            self.service_instance.managers = {'test': ch}
+        ch = mock.MagicMock()
+        ch.node_registered.return_value = None
+        self.service_instance.managers = {'test': ch}
 
-            self.assertEquals(
-                result,
-                self.service_instance.on_node_registered(
-                    message, 'test', '127.0.0.1'))
+        self.assertIsNone(
+            self.service_instance.on_node_registered(
+                message, 'test', '127.0.0.1'))
 
     def test_on_register_node_and_remove_node(self):
         """
@@ -131,21 +130,18 @@ class TestContainerManagerService(TestCase):
         """
         self.service_instance.refresh_managers = mock.MagicMock()
 
-        for method in ('register_node', 'remove_node'):
+        for method_name in ('register_node', 'remove_node'):
             message = mock.MagicMock(
                 payload='',
                 delivery_info={
-                    'routing_key': 'container.{}'.format(method)})
+                    'routing_key': 'container.{}'.format(method_name)})
 
-            for code, result in ((201, True), (404, False)):
-                ch = mock.MagicMock()
-                getattr(ch, method).return_value = result
-                self.service_instance.managers = {'test': ch}
+            ch = mock.MagicMock()
+            getattr(ch, method_name).return_value = None
+            self.service_instance.managers = {'test': ch}
 
-                self.assertEquals(
-                    result,
-                    getattr(self.service_instance, 'on_{}'.format(method))(
-                        message, 'test', '127.0.01'))
+            method = getattr(self.service_instance, 'on_' + method_name)
+            self.assertIsNone(method(message, 'test', '127.0.0.1'))
 
     def test_on_register_node_and_remove_node_with_exceptions(self):
         """
@@ -153,23 +149,21 @@ class TestContainerManagerService(TestCase):
         """
         self.service_instance.refresh_managers = mock.MagicMock()
 
-        for method in ('register_node', 'remove_node'):
+        for method_name in ('register_node', 'remove_node'):
             message = mock.MagicMock(
                 payload='',
                 delivery_info={
-                    'routing_key': 'container.{}'.format(method)})
+                    'routing_key': 'container.{}'.format(method_name)})
 
-            for exc in (KeyError, Exception):
+            for exc in (ContainerManagerError, KeyError, Exception):
                 # XXX: This isn't the exact place the exceptions would be
                 # raised, but it is in the correct block
                 ch = mock.MagicMock()
-                getattr(ch, method).side_effect = exc
+                getattr(ch, method_name).side_effect = exc
                 self.service_instance.managers = {'test': ch}
 
-                self.assertEquals(
-                    False,
-                    getattr(self.service_instance, 'on_{}'.format(method))(
-                        message, 'test', '127.0.01'))
+                method = getattr(self.service_instance, 'on_' + method_name)
+                self.assertRaises(exc, method, message, 'test', '127.0.0.1')
 
     def test_on_get_node_status(self):
         """

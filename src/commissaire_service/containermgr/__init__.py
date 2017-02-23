@@ -83,6 +83,7 @@ class ContainerManagerService(CommissaireService):
     def on_node_registered(self, message, container_handler_name, address):
         """
         Checks if a node is registered to a specific container manager.
+        Raises ContainerManagerError if the node is NOT registered.
 
         :param message: A message instance
         :type message: kombu.message.Message
@@ -90,10 +91,9 @@ class ContainerManagerService(CommissaireService):
         :type container_handler_name: str
         :param address: Address of the node
         :type address: str
-        :returns: Whether the node is registered
-        :rtype: bool
+        :raises: commissaire.containermgr.ContainerManagerError
         """
-        return self._node_operation(
+        self._node_operation(
             container_handler_name, 'node_registered', address)
 
     def on_register_node(self, message, container_handler_name, address):
@@ -106,10 +106,9 @@ class ContainerManagerService(CommissaireService):
         :type container_handler_name: str
         :param address: Address of the node
         :type address: str
-        :returns: Whether the node is registered
-        :rtype: bool
+        :raises: commissaire.containermgr.ContainerManagerError
         """
-        return self._node_operation(
+        self._node_operation(
             container_handler_name, 'register_node', address)
 
     def on_remove_node(self, message, container_handler_name, address):
@@ -122,10 +121,9 @@ class ContainerManagerService(CommissaireService):
         :type container_handler_name: str
         :param address: Address of the node
         :type address: str
-        :returns: Whether the node is registered
-        :rtype: bool
+        :raises: commissaire.containermgr.ContainerManagerError
         """
-        return self._node_operation(
+        self._node_operation(
             container_handler_name, 'remove_node', address)
 
     def _node_operation(self, container_handler_name, method, address):
@@ -138,8 +136,7 @@ class ContainerManagerService(CommissaireService):
         :type method: str
         :param address: Address of the node
         :type address: str
-        :returns: Whether the node is registered
-        :rtype: bool
+        :raises: commissaire.containermgr.ContainerManagerError
         """
         try:
             self.refresh_managers()
@@ -149,25 +146,27 @@ class ContainerManagerService(CommissaireService):
             self.logger.info(
                 '{} called for {} via the container manager {}'.format(
                     method, address, container_handler_name))
-            self.logger.debug('Result: {}'.format(result))
 
-            if bool(result):
+            # Most operations lack a return statement.
+            if result is not None:
+                self.logger.debug('Result: {}'.format(result))
                 return result
 
         except ContainerManagerError as error:
             self.logger.info('{} raised ContainerManagerError: {}'.format(
-                error))
-        except KeyError:
+                container_handler_name, error))
+            raise error
+        except KeyError as error:
             self.logger.error('ContainerHandler {} does not exist.'.format(
                 container_handler_name))
+            raise error
         except Exception as error:
             self.logger.error(
                 'Unexpected error while attempting {} for node "{}" with '
                 'containermgr "{}". {}: {}'.format(
                     method, address, container_handler_name,
                     error.__class__.__name__, error))
-
-        return False
+            raise error
 
     def on_get_node_status(self, message, container_handler_name, address):
         """
@@ -181,14 +180,10 @@ class ContainerManagerService(CommissaireService):
         :type address: str
         :returns: Status of the node according to the container manager.
         :rtype: dict
+        :raises: commissaire.containermgr.ContainerManagerError
         """
-        result = self._node_operation(
+        return self._node_operation(
             container_handler_name, 'get_node_status', address)
-        if result is False:
-            error = 'No status available for node {}'.format(address)
-            self.logger.error(result)
-            raise Exception(error)
-        return result
 
 
 def main():  # pragma: no cover
