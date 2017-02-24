@@ -79,58 +79,58 @@ class ContainerManagerService(CommissaireService):
                 current_managers[config.name] = manager_type(config.options)
         self.managers = current_managers
 
-    def on_node_registered(self, message, container_handler_name, address):
+    def on_node_registered(self, message, container_manager_name, address):
         """
         Checks if a node is registered to a specific container manager.
         Raises ContainerManagerError if the node is NOT registered.
 
         :param message: A message instance
         :type message: kombu.message.Message
-        :param container_handler_name: Name of the ContainerHandler to use.
-        :type container_handler_name: str
+        :param container_manager_name: Name of the container manager to use.
+        :type container_manager_name: str
         :param address: Address of the node
         :type address: str
         :raises: commissaire.containermgr.ContainerManagerError
         """
         self._node_operation(
-            container_handler_name, 'node_registered', address)
+            container_manager_name, 'node_registered', address)
 
-    def on_register_node(self, message, container_handler_name, address):
+    def on_register_node(self, message, container_manager_name, address):
         """
         Registers a node to a container manager.
 
         :param message: A message instance
         :type message: kombu.message.Message
-        :param container_handler_name: Name of the ContainerHandler to use.
-        :type container_handler_name: str
+        :param container_manager_name: Name of the container manager to use.
+        :type container_manager_name: str
         :param address: Address of the node
         :type address: str
         :raises: commissaire.containermgr.ContainerManagerError
         """
         self._node_operation(
-            container_handler_name, 'register_node', address)
+            container_manager_name, 'register_node', address)
 
-    def on_remove_node(self, message, container_handler_name, address):
+    def on_remove_node(self, message, container_manager_name, address):
         """
         Removes a node from a container manager.
 
         :param message: A message instance
         :type message: kombu.message.Message
-        :param container_handler_name: Name of the ContainerHandler to use.
-        :type container_handler_name: str
+        :param container_manager_name: Name of the container manager to use.
+        :type container_manager_name: str
         :param address: Address of the node
         :type address: str
         :raises: commissaire.containermgr.ContainerManagerError
         """
         self._node_operation(
-            container_handler_name, 'remove_node', address)
+            container_manager_name, 'remove_node', address)
 
-    def _node_operation(self, container_handler_name, method, address):
+    def _node_operation(self, container_manager_name, method, address):
         """
         Common code for getting node information.
 
-        :param container_handler_name: Name of the ContainerHandler to use.
-        :type container_handler_name: str
+        :param container_manager_name: Name of the container manager to use.
+        :type container_manager_name: str
         :param method: The containermgr method to call.
         :type method: str
         :param address: Address of the node
@@ -139,12 +139,12 @@ class ContainerManagerService(CommissaireService):
         """
         try:
             self.refresh_managers()
-            container_handler = self.managers[container_handler_name]
-            result = getattr(container_handler, method).__call__(address)
+            container_manager = self.managers[container_manager_name]
+            result = getattr(container_manager, method).__call__(address)
 
             self.logger.info(
                 '{} called for {} via the container manager {}'.format(
-                    method, address, container_handler_name))
+                    method, address, container_manager_name))
 
             # Most operations lack a return statement.
             if result is not None:
@@ -153,28 +153,28 @@ class ContainerManagerService(CommissaireService):
 
         except ContainerManagerError as error:
             self.logger.info('{} raised ContainerManagerError: {}'.format(
-                container_handler_name, error))
+                container_manager_name, error))
             raise error
         except KeyError as error:
-            self.logger.error('ContainerHandler {} does not exist.'.format(
-                container_handler_name))
+            self.logger.error('Container manager "{}" does not exist.'.format(
+                container_manager_name))
             raise error
         except Exception as error:
             self.logger.error(
                 'Unexpected error while attempting {} for node "{}" with '
                 'containermgr "{}". {}: {}'.format(
-                    method, address, container_handler_name,
+                    method, address, container_manager_name,
                     error.__class__.__name__, error))
             raise error
 
-    def on_get_node_status(self, message, container_handler_name, address):
+    def on_get_node_status(self, message, container_manager_name, address):
         """
         Gets a nodes status from the container manager.
 
         :param message: A message instance
         :type message: kombu.message.Message
-        :param container_handler_name: Name of the ContainerHandler to use.
-        :type container_handler_name: str
+        :param container_manager_name: Name of the container manager to use.
+        :type container_manager_name: str
         :param address: Address of the node
         :type address: str
         :returns: Status of the node according to the container manager.
@@ -182,7 +182,7 @@ class ContainerManagerService(CommissaireService):
         :raises: commissaire.containermgr.ContainerManagerError
         """
         return self._node_operation(
-            container_handler_name, 'get_node_status', address)
+            container_manager_name, 'get_node_status', address)
 
 
 def main():  # pragma: no cover
