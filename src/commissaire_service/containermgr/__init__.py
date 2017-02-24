@@ -31,8 +31,7 @@ class ContainerManagerService(CommissaireService):
 
     def __init__(self, exchange_name, connection_url, config_file=None):
         """
-        Creates a new ContainerManagerService and sets up ContainerHandler
-        instances according to the config_file.  If config_file is omitted,
+        Creates a new ContainerManagerService.  If config_file is omitted,
         it will try the default location (/etc/commissaire/containermgr.conf).
 
         :param exchange_name: Name of the topic exchange
