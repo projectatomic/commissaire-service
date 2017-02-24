@@ -125,7 +125,7 @@ class ContainerManagerService(CommissaireService):
         self._node_operation(
             container_manager_name, 'remove_node', address)
 
-    def _node_operation(self, container_manager_name, method, address):
+    def _node_operation(self, container_manager_name, method, *args):
         """
         Common code for getting node information.
 
@@ -133,18 +133,18 @@ class ContainerManagerService(CommissaireService):
         :type container_manager_name: str
         :param method: The containermgr method to call.
         :type method: str
-        :param address: Address of the node
-        :type address: str
+        :param args: Additional arguments for the containermgr method.
+        :type args: tuple
         :raises: commissaire.containermgr.ContainerManagerError
         """
         try:
             self.refresh_managers()
             container_manager = self.managers[container_manager_name]
-            result = getattr(container_manager, method).__call__(address)
+            result = getattr(container_manager, method).__call__(*args)
 
             self.logger.info(
-                '{} called for {} via the container manager {}'.format(
-                    method, address, container_manager_name))
+                '{}{} called via the container manager "{}"'.format(
+                    method, args, container_manager_name))
 
             # Most operations lack a return statement.
             if result is not None:
@@ -161,9 +161,9 @@ class ContainerManagerService(CommissaireService):
             raise error
         except Exception as error:
             self.logger.error(
-                'Unexpected error while attempting {} for node "{}" with '
-                'containermgr "{}". {}: {}'.format(
-                    method, address, container_manager_name,
+                'Unexpected error while attempting {}{} with '
+                'container manager "{}". {}: {}'.format(
+                    method, args, container_manager_name,
                     error.__class__.__name__, error))
             raise error
 
