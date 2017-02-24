@@ -126,11 +126,14 @@ class TestContainerManagerService(TestCase):
 
     def test_on_register_node_and_remove_node(self):
         """
-        Verify on_register/remove_node responds properly.
+        Verify on_register/remove_node/remove_all_nodes responds properly.
         """
         self.service_instance.refresh_managers = mock.MagicMock()
 
-        for method_name in ('register_node', 'remove_node'):
+        for method_name, args in [
+                ('register_node',    ('127.0.0.1',)),
+                ('remove_node',      ('127.0.0.1',)),
+                ('remove_all_nodes', ())]:
             message = mock.MagicMock(
                 payload='',
                 delivery_info={
@@ -141,15 +144,18 @@ class TestContainerManagerService(TestCase):
             self.service_instance.managers = {'test': ch}
 
             method = getattr(self.service_instance, 'on_' + method_name)
-            self.assertIsNone(method(message, 'test', '127.0.0.1'))
+            self.assertIsNone(method(message, 'test', *args))
 
     def test_on_register_node_and_remove_node_with_exceptions(self):
         """
-        Verify on_register/remove_node handle exceptions.
+        Verify on_register/remove_node/remove_all_nodes handle exceptions.
         """
         self.service_instance.refresh_managers = mock.MagicMock()
 
-        for method_name in ('register_node', 'remove_node'):
+        for method_name, args in [
+                ('register_node',    ('127.0.0.1',)),
+                ('remove_node',      ('127.0.0.1',)),
+                ('remove_all_nodes', ())]:
             message = mock.MagicMock(
                 payload='',
                 delivery_info={
@@ -163,7 +169,7 @@ class TestContainerManagerService(TestCase):
                 self.service_instance.managers = {'test': ch}
 
                 method = getattr(self.service_instance, 'on_' + method_name)
-                self.assertRaises(exc, method, message, 'test', '127.0.0.1')
+                self.assertRaises(exc, method, message, 'test', *args)
 
     def test_on_get_node_status(self):
         """

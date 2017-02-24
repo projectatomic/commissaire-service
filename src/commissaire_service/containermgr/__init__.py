@@ -125,6 +125,18 @@ class ContainerManagerService(CommissaireService):
         self._node_operation(
             container_manager_name, 'remove_node', address)
 
+    def on_remove_all_nodes(self, message, container_manager_name):
+        """
+        Removes all nodes from a container manager.
+
+        :param message: A message instance
+        :type message: kombu.message.Message
+        :param container_manager_name: Name of the container manager to use.
+        :type container_manager_name: str
+        :raises: commissaire.containermgr.ContainerManagerError
+        """
+        self._node_operation(container_manager_name, 'remove_all_nodes')
+
     def _node_operation(self, container_manager_name, method, *args):
         """
         Common code for getting node information.
