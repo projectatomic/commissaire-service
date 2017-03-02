@@ -24,7 +24,7 @@ import traceback
 from time import sleep
 
 from commissaire import constants as C
-from commissaire.bus import BusMixin, StorageLookupError
+from commissaire.bus import BusMixin, RemoteProcedureCallError
 
 from kombu import Connection, Exchange, Producer, Queue
 from kombu.mixins import ConsumerMixin
@@ -240,7 +240,9 @@ class CommissaireService(ConsumerMixin, BusMixin):
                     'Dropping unknown message: payload="{}", '
                     'properties="{}"'.format(body, message.properties))
         except Exception as error:
-            if isinstance(error, StorageLookupError):
+            # Subclasses of RemoteProcedureCallError are re-created and
+            # raised on the client-side.
+            if isinstance(error, RemoteProcedureCallError):
                 response['error'] = {
                     'code': error.code,
                     'message': str(error),
