@@ -20,8 +20,8 @@ from . import TestCase, mock
 
 import commissaire.constants as C
 
+from commissaire.bus import ContainerManagerError
 from commissaire.models import ContainerManagerConfig, ContainerManagerConfigs
-from commissaire.containermgr import ContainerManagerError
 from commissaire_service.containermgr import ContainerManagerService
 
 
@@ -165,7 +165,7 @@ class TestContainerManagerService(TestCase):
                 # XXX: This isn't the exact place the exceptions would be
                 # raised, but it is in the correct block
                 ch = mock.MagicMock()
-                getattr(ch, method_name).side_effect = exc
+                getattr(ch, method_name).side_effect = exc('test')
                 self.service_instance.managers = {'test': ch}
 
                 method = getattr(self.service_instance, 'on_' + method_name)

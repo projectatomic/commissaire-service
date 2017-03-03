@@ -15,8 +15,8 @@
 
 from commissaire import models
 
-from commissaire.containermgr import (
-    ContainerManagerBase, ContainerManagerError)
+from commissaire.bus import ContainerManagerError
+from commissaire.containermgr import ContainerManagerBase
 from commissaire.storage.client import StorageClient
 from commissaire.util.config import read_config_file, import_plugin
 
@@ -90,7 +90,7 @@ class ContainerManagerService(CommissaireService):
         :type container_manager_name: str
         :param address: Address of the node
         :type address: str
-        :raises: commissaire.containermgr.ContainerManagerError
+        :raises: commissaire.bus.ContainerManagerError
         """
         self._node_operation(
             container_manager_name, 'node_registered', address)
@@ -105,7 +105,7 @@ class ContainerManagerService(CommissaireService):
         :type container_manager_name: str
         :param address: Address of the node
         :type address: str
-        :raises: commissaire.containermgr.ContainerManagerError
+        :raises: commissaire.bus.ContainerManagerError
         """
         self._node_operation(
             container_manager_name, 'register_node', address)
@@ -120,7 +120,7 @@ class ContainerManagerService(CommissaireService):
         :type container_manager_name: str
         :param address: Address of the node
         :type address: str
-        :raises: commissaire.containermgr.ContainerManagerError
+        :raises: commissaire.bus.ContainerManagerError
         """
         self._node_operation(
             container_manager_name, 'remove_node', address)
@@ -133,7 +133,7 @@ class ContainerManagerService(CommissaireService):
         :type message: kombu.message.Message
         :param container_manager_name: Name of the container manager to use.
         :type container_manager_name: str
-        :raises: commissaire.containermgr.ContainerManagerError
+        :raises: commissaire.bus.ContainerManagerError
         """
         self._node_operation(container_manager_name, 'remove_all_nodes')
 
@@ -147,11 +147,12 @@ class ContainerManagerService(CommissaireService):
         :type method: str
         :param args: Additional arguments for the containermgr method.
         :type args: tuple
-        :raises: commissaire.containermgr.ContainerManagerError
+        :raises: commissaire.bus.ContainerManagerError
         """
         try:
             self.refresh_managers()
             container_manager = self.managers[container_manager_name]
+
             result = getattr(container_manager, method).__call__(*args)
 
             self.logger.info(
@@ -191,7 +192,7 @@ class ContainerManagerService(CommissaireService):
         :type address: str
         :returns: Status of the node according to the container manager.
         :rtype: dict
-        :raises: commissaire.containermgr.ContainerManagerError
+        :raises: commissaire.bus.ContainerManagerError
         """
         return self._node_operation(
             container_manager_name, 'get_node_status', address)
