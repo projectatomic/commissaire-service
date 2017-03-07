@@ -21,7 +21,7 @@ from commissaire.util.config import ConfigurationError
 from commissaire.models import ValidationError
 
 
-class StoreHandlerManager(object):
+class StoreHandlerManager(object):  # pragma: no cover (temporary)
     """
     Configures StoreHandler instances and routes storage requests to
     the appropriate handler.

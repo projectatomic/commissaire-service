@@ -71,7 +71,7 @@ class StorageService(CommissaireService):
         for config in store_handlers:
             self.register_store_handler(config)
 
-    def register_store_handler(self, config):
+    def register_store_handler(self, config):  # pragma: no cover (temporary)
         """
         Registers a new store handler type after extracting and validating
         information required for registration from the configuration data.
@@ -143,9 +143,9 @@ class StorageService(CommissaireService):
         :param model_type_name: Model type for the JSON data
         :type model_type_name: str
         :param model_json_data: JSON representation of one or more models
-        :type model_json_data: dict or str, or list of dict or str
+        :type model_json_data: dict, str, [dict, ...] or [str, ...]
         :returns: full dict representation of the model(s)
-        :rtype: dict, or list of dicts
+        :rtype: dict or [dict, ...]
         """
         if isinstance(model_json_data, list):
             # Build all models first so we catch invalid input before
@@ -173,9 +173,9 @@ class StorageService(CommissaireService):
         :param model_type_name: Model type for the JSON data
         :type model_type_name: str
         :param model_json_data: JSON identification of one or more models
-        :type model_json_data: dict or str, or list of dict or str
+        :type model_json_data: dict, str, [dict, ...] or [str, ...]
         :returns: full dict representation of the model(s)
-        :rtype: dict, or list of dicts
+        :rtype: dict or [dict, ...]
         """
         if isinstance(model_json_data, list):
             # Build all models first so we catch invalid input before
@@ -203,7 +203,7 @@ class StorageService(CommissaireService):
         :param model_type_name: Model type for the JSON data
         :type model_type_name: str
         :param model_json_data: JSON identification of one or more models
-        :type model_json_data: dict or str, or list of dict or str
+        :type model_json_data: dict, str, [dict, ...] or [str, ...]
         """
         if not isinstance(model_json_data, list):
             model_json_data = [model_json_data]
@@ -214,7 +214,7 @@ class StorageService(CommissaireService):
         for model_instance in models:
             self._manager.delete(model_instance)
 
-    def on_list(self, message, model_type_name):
+    def on_list(self, message, model_type_name):  # pragma: no cover (temporary) # noqa
         """
         Handler for the "storage.list" routing key.
 
@@ -231,7 +231,7 @@ class StorageService(CommissaireService):
         model_list = self._manager.list(model_type.new())
         return [model_instance.to_dict() for model_instance in model_list]
 
-    def on_list_store_handlers(self, message):
+    def on_list_store_handlers(self, message):  # pragma: no cover (temporary)
         """
         Handler for the "storage.list_store_handlers" routing key.
 
