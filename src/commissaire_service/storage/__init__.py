@@ -1,4 +1,4 @@
-# Copyright (C) 2016  Red Hat, Inc
+# Copyright (C) 2016-2017  Red Hat, Inc
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -134,18 +134,28 @@ class StorageService(CommissaireService):
         default values as needed, and saves it to a store; then returns the
         full saved JSON data.
 
+        The JSON data argument may also be a list of models of the same type,
+        which returns a list of full models; equivalent to calling the method
+        once for each list item, with fewer bus messages.
+
         :param message: A message instance
         :type message: kombu.message.Message
         :param model_type_name: Model type for the JSON data
         :type model_type_name: str
-        :param model_json_data: JSON representation of a model
-        :type model_json_data: dict or str
-        :returns: full dict representation of the model
-        :rtype: dict
+        :param model_json_data: JSON representation of one or more models
+        :type model_json_data: dict or str, or list of dict or str
+        :returns: full dict representation of the model(s)
+        :rtype: dict, or list of dicts
         """
-        model_instance = self._build_model(model_type_name, model_json_data)
-        saved_model_instance = self._manager.save(model_instance)
-        return saved_model_instance.to_dict()
+        if isinstance(model_json_data, list):
+            # Build all models first so we catch invalid input before
+            # touching permanent storage.
+            models = [self._build_model(model_type_name, x)
+                      for x in model_json_data]
+            return [self._manager.save(x).to_dict() for x in models]
+        else:
+            model = self._build_model(model_type_name, model_json_data)
+            return self._manager.save(model).to_dict()
 
     def on_get(self, message, model_type_name, model_json_data):
         """
@@ -154,18 +164,28 @@ class StorageService(CommissaireService):
         Returns JSON data from a store.  The input model data need only
         have enough information to uniquely identify the model.
 
+        The JSON data argument may also be a list of models of the same type,
+        which returns a list of full models; equivalent to calling the method
+        once for each list item, with fewer bus messages.
+
         :param message: A message instance
         :type message: kombu.message.Message
         :param model_type_name: Model type for the JSON data
         :type model_type_name: str
-        :param model_json_data: JSON identification of a model
-        :type model_json_data: dict or str
-        :returns: full dict representation of the model
-        :rtype: dict
+        :param model_json_data: JSON identification of one or more models
+        :type model_json_data: dict or str, or list of dict or str
+        :returns: full dict representation of the model(s)
+        :rtype: dict, or list of dicts
         """
-        model_instance = self._build_model(model_type_name, model_json_data)
-        full_model_instance = self._manager.get(model_instance)
-        return full_model_instance.to_dict()
+        if isinstance(model_json_data, list):
+            # Build all models first so we catch invalid input before
+            # touching permanent storage.
+            models = [self._build_model(model_type_name, x)
+                      for x in model_json_data]
+            return [self._manager.get(x).to_dict() for x in models]
+        else:
+            model = self._build_model(model_type_name, model_json_data)
+            return self._manager.get(model).to_dict()
 
     def on_delete(self, message, model_type_name, model_json_data):
         """
@@ -174,15 +194,25 @@ class StorageService(CommissaireService):
         Deletes JSON data from a store.  The input model data need only
         have enough information to uniquely identify the model.
 
+        The JSON data argument may also be a list of models of the same type;
+        equivalent to calling the method once for each list item, with fewer
+        bus messages.
+
         :param message: A message instance
         :type message: kombu.message.Message
         :param model_type_name: Model type for the JSON data
         :type model_type_name: str
-        :param model_json_data: JSON identification of a model
-        :type model_json_data: dict or str
+        :param model_json_data: JSON identification of one or more models
+        :type model_json_data: dict or str, or list of dict or str
         """
-        model_instance = self._build_model(model_type_name, model_json_data)
-        self._manager.delete(model_instance)
+        if not isinstance(model_json_data, list):
+            model_json_data = [model_json_data]
+        # Build all models first so we catch invalid input before touching
+        # permanent storage.
+        models = [self._build_model(model_type_name, x)
+                  for x in model_json_data]
+        for model_instance in models:
+            self._manager.delete(model_instance)
 
     def on_list(self, message, model_type_name):
         """
