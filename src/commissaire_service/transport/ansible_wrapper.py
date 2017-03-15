@@ -76,6 +76,7 @@ def gather_facts(host, args=[]):  # pragma: no cover
             stderr=subprocess.PIPE,
             universal_newlines=True,
             check=True)
+        logger.info('Process completed')
         # Output line is '$host | SUCCESS => { ... }'
         host_result, json_facts = completed_process.stdout.split(' => ', 1)
         return json.loads(json_facts).get('ansible_facts', {})
@@ -112,6 +113,7 @@ def execute_playbook(playbook, hosts, args=[]):  # pragma: no cover
             stderr=subprocess.PIPE,
             universal_newlines=True,
             check=True)
+        logger.info('Process completed')
         # TODO: Try to parse stdout?
         logger.debug('Playbook log:\n' + completed_process.stdout)
     except subprocess.CalledProcessError as error:
