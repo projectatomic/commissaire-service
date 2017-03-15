@@ -234,7 +234,7 @@ class Transport:  # pragma: no cover
         return self._run(
             host.address, key_file, play_file, [0, 3], disable_reconnect=True)
 
-    def bootstrap(self, ip, key_file, oscmd, etcd_config, cluster, network):
+    def bootstrap(self, ip, key_file, oscmd, etcd_config, network):
         """
         Bootstraps a host via ansible.
 
@@ -246,8 +246,6 @@ class Transport:  # pragma: no cover
         :type oscmd: commissaire_service.oscmd.OSCmdBase
         :param etcd_config: An EtcdStoreHandler configuration
         :type etcd_config: dict
-        :param cluster: A cluster model for the host
-        :type cluster: commissaire.models.Cluster
         :param network: A network model for the host's cluster
         :type network: commissaire.models.Network
         :returns: An Ansible status code (0=Success)

@@ -164,7 +164,7 @@ class InvestigatorService(CommissaireService):
                 'Using network "{}" of type "{}"'.format(
                     network.name, network.type))
             transport.bootstrap(
-                address, key.path, oscmd, etcd_config, cluster, network)
+                address, key.path, oscmd, etcd_config, network)
             host.status = 'inactive'
         except Exception as error:
             self.logger.warn(
