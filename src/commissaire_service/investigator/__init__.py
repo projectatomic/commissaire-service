@@ -85,7 +85,7 @@ class InvestigatorService(CommissaireService):
             cluster = Cluster.new(**cluster_data)
             network = self.storage.get_network(cluster.network)
         except TypeError:
-            cluster = Cluster.new(type=C.CLUSTER_TYPE_HOST)
+            cluster = None
             network = Network.new(**C.DEFAULT_CLUSTER_NETWORK_JSON)
 
         return cluster, network
@@ -153,13 +153,18 @@ class InvestigatorService(CommissaireService):
             etcd_config = self._get_etcd_config()
             cluster, network = self._get_cluster_and_network_models(
                 cluster_data)
-            if cluster.container_manager:
-                self.logger.info(
-                    'Using cluster "{}" managed by "{}"'.format(
-                        cluster.name, cluster.container_manager))
-            else:
-                self.logger.info(
-                    'Using unmanaged cluster "{}"'.format(cluster.name))
+
+            container_manager = None
+            if cluster:
+                if cluster.container_manager:
+                    container_manager = cluster.container_manager
+                    self.logger.info(
+                        'Using cluster "{}" managed by "{}"'.format(
+                            cluster.name, container_manager))
+                else:
+                    self.logger.info(
+                        'Using unmanaged cluster "{}"'.format(cluster.name))
+
             self.logger.info(
                 'Using network "{}" of type "{}"'.format(
                     network.name, network.type))
@@ -180,15 +185,15 @@ class InvestigatorService(CommissaireService):
         # Register with container manager (if applicable).
         try:
             host.status = 'disassociated'
-            if cluster.container_manager:
+            if container_manager:
                 self.request(
                     'container.register_node',
-                    cluster.container_manager, address)
+                    container_manager, address)
                 host.status = 'active'
         except Exception as error:
             self.logger.warn(
                 'Unable to register {} to container manager "{}": {}'.format(
-                    address, cluster.container_manager, error.args[0]))
+                    address, container_manager, error.args[0]))
             key.remove()
             raise error
         finally:
