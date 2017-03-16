@@ -128,13 +128,13 @@ class InvestigatorService(CommissaireService):
             data.update(facts)
             host = Host.new(**data)
             host.last_check = formatted_dt()
-            host.status = 'bootstrapping'
+            host.status = C.HOST_STATUS_BOOTSTRAPPING
             self.logger.info('Facts for {} retrieved'.format(address))
             self.logger.debug('Data: {}'.format(host.to_json()))
         except Exception as error:
             self.logger.warn('Getting info failed for {}: {}'.format(
                 address, str(error)))
-            host.status = 'failed'
+            host.status = C.HOST_STATUS_FAILED
             key.remove()
             raise error
         finally:
@@ -170,12 +170,12 @@ class InvestigatorService(CommissaireService):
                     network.name, network.type))
             transport.bootstrap(
                 address, key.path, oscmd, etcd_config, network)
-            host.status = 'disassociated'
+            host.status = C.HOST_STATUS_DISASSOCIATED
         except Exception as error:
             self.logger.warn(
                 'Unable to start bootstraping for {}: {}'.format(
                     address, str(error)))
-            host.status = 'failed'
+            host.status = C.HOST_STATUS_FAILED
             key.remove()
             raise error
         finally:
@@ -188,7 +188,7 @@ class InvestigatorService(CommissaireService):
                 self.request(
                     'container.register_node',
                     container_manager, address)
-                host.status = 'active'
+                host.status = C.HOST_STATUS_ACTIVE
         except Exception as error:
             self.logger.warn(
                 'Unable to register {} to container manager "{}": {}'.format(

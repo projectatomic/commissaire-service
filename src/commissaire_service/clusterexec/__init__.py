@@ -15,6 +15,7 @@
 
 import json
 
+from commissaire import constants as C
 from commissaire.models import (
     ClusterDeploy, ClusterUpgrade, ClusterRestart)
 from commissaire.storage.client import StorageClient
@@ -137,7 +138,7 @@ class ClusterExecService(CommissaireService):
                     method(host.address, key.path, oscmd, command_args)
                 except Exception as error:
                     # If there was a failure, set the end_status and break.
-                    end_status = 'failed'
+                    end_status = C.HOST_STATUS_FAILED
                     self.logger.error(
                         'Clusterexec {} for {} failed: {}: {}'.format(
                             command_name, host.address, type(error), error))

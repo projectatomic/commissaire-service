@@ -129,7 +129,7 @@ class WatcherService(CommissaireService):
                 self.logger.debug(
                     'Watcher failed for host node "{}" with {}: {}'.format(
                         address, str(error), error))
-                host.status = 'failed'
+                host.status = C.HOST_STATUS_FAILED
                 raise error
             finally:
                 # Save the model
