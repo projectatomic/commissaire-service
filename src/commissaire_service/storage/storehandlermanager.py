@@ -15,8 +15,6 @@
 
 import logging
 
-from copy import deepcopy
-
 from commissaire.util.config import ConfigurationError
 from commissaire.models import ValidationError
 
@@ -43,19 +41,6 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
         # Logger objects can't be pickled, so fetch ours lazily so
         # cloned StoreHandlerManagers can be passed to subprocesses.
         self.__logger = None
-
-    def clone(self):
-        """
-        Creates a copy of a StoreHandlerManager with the same configuration
-        but no connections.
-        """
-        clone = StoreHandlerManager()
-        clone._registry = deepcopy(self._registry)
-        clone._registry_extras = deepcopy(self._registry_extras)
-        # clone._handlers should remain empty.
-        # clone._container_managers should remain empty.
-        # clone.__loggers should remain None.
-        return clone
 
     def register_store_handler(self, handler_type, config, *model_types):
         """
