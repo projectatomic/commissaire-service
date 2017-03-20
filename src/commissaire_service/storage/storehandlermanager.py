@@ -29,6 +29,8 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
         """
         Creates a new StoreHandlerManager instance.
         """
+        self._logger = logging.getLogger('store')
+
         self._registry = {}
         self._handlers = {}
 
@@ -37,10 +39,6 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
         self._registry_extras = []
 
         self._container_managers = []
-
-        # Logger objects can't be pickled, so fetch ours lazily so
-        # cloned StoreHandlerManagers can be passed to subprocesses.
-        self.__logger = None
 
     def register_store_handler(self, handler_type, config, *model_types):
         """
@@ -107,8 +105,7 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
                         container_manager = container_manager_class(config)
                         self._container_managers.append(container_manager)
                     else:
-                        logger = self._get_logger()
-                        logger.warn(
+                        self._logger.warn(
                             'A container manager is already established, '
                             'skipping {} as configured for store handler '
                             '"{}"'.format(
@@ -137,17 +134,6 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
             self._handlers.update({mt: handler for mt in model_types})
         return handler
 
-    def _get_logger(self):
-        """
-        Returns the 'store' logger for debug messages.
-
-        :returns: Logger
-        :rtype: logging.Logger
-        """
-        if self.__logger is None:
-            self.__logger = logging.getLogger('store')
-        return self.__logger
-
     def save(self, model_instance):
         """
         Saves data to a store and returns back a saved model.
@@ -157,17 +143,16 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
         :returns: The saved model instance
         :rtype: commissaire.model.Model
         """
-        logger = self._get_logger()
         handler = self._get_handler(model_instance)
         # Validate before saving
         try:
             model_instance._validate()
         except ValidationError as ve:
-            logger.error(ve.args[0], ve.args[1])
+            self._logger.error(ve.args[0], ve.args[1])
             raise ve
-        logger.debug('> SAVE {}'.format(model_instance))
+        self._logger.debug('> SAVE {}'.format(model_instance))
         model_instance = handler._save(model_instance)
-        logger.debug('< SAVE {}'.format(model_instance))
+        self._logger.debug('< SAVE {}'.format(model_instance))
         return model_instance
 
     def get(self, model_instance):
@@ -179,17 +164,16 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
         :returns: The saved model instance
         :rtype: commissaire.model.Model
         """
-        logger = self._get_logger()
         handler = self._get_handler(model_instance)
-        logger.debug('> GET {}'.format(model_instance))
+        self._logger.debug('> GET {}'.format(model_instance))
         model_instance = handler._get(model_instance)
         # Validate after getting
         try:
             model_instance._validate()
         except ValidationError as ve:
-            logger.error(ve.args[0], ve.args[1])
+            self._logger.error(ve.args[0], ve.args[1])
             raise ve
-        logger.debug('< GET {}'.format(model_instance))
+        self._logger.debug('< GET {}'.format(model_instance))
         return model_instance
 
     def delete(self, model_instance):
@@ -199,9 +183,8 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
         :param model_instance: Model instance to delete
         :type model_instance:
         """
-        logger = self._get_logger()
         handler = self._get_handler(model_instance)
-        logger.debug('> DELETE {}'.format(model_instance))
+        self._logger.debug('> DELETE {}'.format(model_instance))
         handler._delete(model_instance)
 
     def list(self, model_instance):
@@ -213,9 +196,8 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
         :returns: A list of models
         :rtype: list
         """
-        logger = self._get_logger()
         handler = self._get_handler(model_instance)
-        logger.debug('> LIST {}'.format(model_instance))
+        self._logger.debug('> LIST {}'.format(model_instance))
         model_instance = handler._list(model_instance)
-        logger.debug('< LIST {}'.format(model_instance))
+        self._logger.debug('< LIST {}'.format(model_instance))
         return getattr(model_instance, model_instance._list_attr, [])
