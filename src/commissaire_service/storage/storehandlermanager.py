@@ -15,8 +15,9 @@
 
 import logging
 
-from commissaire.util.config import ConfigurationError
-from commissaire.models import ValidationError
+from commissaire.util.config import import_plugin, ConfigurationError
+from commissaire.models import Host, ValidationError
+from commissaire.storage import StoreHandlerBase
 
 
 class StoreHandlerManager(object):  # pragma: no cover (temporary)
@@ -44,6 +45,11 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
         # Stash them here to include them in list_store_handlers().
         # { handler_type : config }
         self._extra_configs = {}
+
+        # Store handler instances with no associated model types.
+        # Instantiated on-demand from self._extra_configs entries.
+        # { handler_type : handler_instance }
+        self._extra_handlers = {}
 
         self._container_managers = []
 
@@ -134,12 +140,33 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
         for the given model.  Raises KeyError if no handler is registered
         for that type of model.
         """
-        handler = self._handlers.get(type(model))
+        handler = None
+        model_type = type(model)
+
+        # Special case: If the model is a Host, check for a module name
+        #               in its "source" attribute and try to import a
+        #               StoreHandler class from that module.
+        if model_type is Host:
+            module_name = getattr(model, 'source', '')
+            if module_name:
+                handler_type = import_plugin(
+                    module_name, 'commissaire.storage', StoreHandlerBase)
+                handler = self._extra_handlers.get(handler_type)
+                if handler is None:
+                    # Let this raise a KeyError if the lookup fails.
+                    config = self.extra_configs[handler_type]
+                    handler = handler_type(config)
+                    self._extra_handlers[handler_type] = handler
+
+        if handler is None:
+            handler = self._handlers.get(model_type)
+
         if handler is None:
             # Let this raise a KeyError if the registry lookup fails.
-            handler_type, config, model_types = self._registry[type(model)]
+            handler_type, config, model_types = self._registry[model_type]
             handler = handler_type(config)
             self._handlers.update({mt: handler for mt in model_types})
+
         return handler
 
     def save(self, model_instance):
