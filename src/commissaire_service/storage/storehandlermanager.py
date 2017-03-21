@@ -31,12 +31,19 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
         """
         self._logger = logging.getLogger('store')
 
+        # Store handler configs for particular model types.
+        # { model_type : ( handler_type, config, ( model_type, ...) ) }
         self._registry = {}
+
+        # Store handler instances for particular model types.
+        # Instantiated on-demand from self._registry entries.
+        # { model_type : handler_instance }
         self._handlers = {}
 
-        # Handler types + configs with no associated model types.
+        # Store handler configs with no associated model types.
         # Stash them here to include them in list_store_handlers().
-        self._registry_extras = []
+        # { handler_type : config }
+        self._extra_configs = {}
 
         self._container_managers = []
 
@@ -54,8 +61,8 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
         :type module_types: tuple
         """
         handler_type.check_config(config)
-        entry = (handler_type, config, model_types)
         if len(model_types) > 0:
+            entry = (handler_type, config, model_types)
             for mt in model_types:
                 if mt in self._registry:
                     conflicting_type, _, _ = self._registry[mt]
@@ -66,7 +73,7 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
                 else:
                     self._registry[mt] = entry
         else:
-            self._registry_extras.append(entry)
+            self._extra_configs[handler_type] = config
 
     def list_store_handlers(self):
         """
@@ -79,7 +86,8 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
         """
         # This collects all unique instances from the registry.
         entries = list({id(x): x for x in self._registry.values()}.values())
-        entries.extend(self._registry_extras)
+        for handler_type, config in self._extra_configs.items():
+            entries.append((handler_type, config, ()))
         return entries
 
     def list_container_managers(self, cluster_type=None):
