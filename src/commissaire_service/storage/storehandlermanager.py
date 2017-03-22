@@ -15,9 +15,8 @@
 
 import logging
 
-from commissaire.util.config import import_plugin, ConfigurationError
+from commissaire.util.config import ConfigurationError
 from commissaire.models import Host, ValidationError
-from commissaire.storage import StoreHandlerBase
 
 
 class StoreHandlerManager(object):  # pragma: no cover (temporary)
@@ -32,24 +31,23 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
         """
         self._logger = logging.getLogger('store')
 
-        # Store handler configs for particular model types.
+        # Store handler definitions by name.
+        # { name : ( handler_type, config, ( model_type, ...) ) }
+        self._definitions_by_name = {}
+
+        # Storage handler definitions for particular model types.
         # { model_type : ( handler_type, config, ( model_type, ...) ) }
-        self._registry = {}
-
-        # Store handler instances for particular model types.
-        # Instantiated on-demand from self._registry entries.
-        # { model_type : handler_instance }
-        self._handlers = {}
-
-        # Store handler configs with no associated model types.
-        # Stash them here to include them in list_store_handlers().
-        # { handler_type : config }
-        self._extra_configs = {}
+        self._definitions_by_model_type = {}
 
         # Store handler instances with no associated model types.
-        # Instantiated on-demand from self._extra_configs entries.
-        # { handler_type : handler_instance }
-        self._extra_handlers = {}
+        # Instantiated on-demand from self._definitions_by_name.
+        # { name : handler_instance }
+        self._handlers_by_name = {}
+
+        # Storage handler instances for particular model types.
+        # Instantiated on-demand from self._definitions_by_model_type.
+        # { model_type : handler_instance }
+        self._handlers_by_model_type = {}
 
         self._container_managers = []
 
@@ -67,19 +65,37 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
         :type module_types: tuple
         """
         handler_type.check_config(config)
-        if len(model_types) > 0:
-            entry = (handler_type, config, model_types)
-            for mt in model_types:
-                if mt in self._registry:
-                    conflicting_type, _, _ = self._registry[mt]
-                    raise ConfigurationError(
-                        'Model "{}" already assigned to "{}"'.format(
-                            getattr(mt, '__name__', '?'),
-                            getattr(conflicting_type, '__module__', '?')))
-                else:
-                    self._registry[mt] = entry
-        else:
-            self._extra_configs[handler_type] = config
+
+        definition = (handler_type, config, model_types)
+
+        name = config.get('name', '').strip()
+        if not name:
+            # If the store handler definition was not given a
+            # name, derive a unique name from its module name.
+            suffix = 1
+            name = handler_type.__module__
+            while name in self._definitions_by_name:
+                name = '{}-{}'.format(handler_type.__module__, suffix)
+                suffix += 1
+            config['name'] = name
+
+        if name in self._definitions_by_name:
+            raise ConfigurationError(
+                'Duplicate storage handlers named "{}"'.format(name))
+
+        for mt in model_types:
+            if mt in self._definitions_by_model_type:
+                conflicting_type, _, _ = \
+                    self._definitions_by_model_type[mt]
+                raise ConfigurationError(
+                    'Model "{}" already assigned to "{}"'.format(
+                        getattr(mt, '__name__', '?'),
+                        getattr(conflicting_type, '__module__', '?')))
+
+        # Add definition after all checks pass.
+        self._definitions_by_name[name] = definition
+        new_items = {mt: definition for mt in model_types}
+        self._definitions_by_model_type.update(new_items)
 
     def list_store_handlers(self):
         """
@@ -90,11 +106,7 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
         :returns: List of registered store handlers
         :rtype: list
         """
-        # This collects all unique instances from the registry.
-        entries = list({id(x): x for x in self._registry.values()}.values())
-        for handler_type, config in self._extra_configs.items():
-            entries.append((handler_type, config, ()))
-        return entries
+        return list(self._definitions_by_name.values())
 
     def list_container_managers(self):
         """
@@ -124,6 +136,18 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
 
         return self._container_managers
 
+    def _create_handler(self, definition):
+        """
+        Creates a handler instance from a handler definition, and add the
+        handler instance to various internal data structures.
+        """
+        handler_type, config, model_types = definition
+        handler = handler_type(config)
+        self._handlers_by_name[config['name']] = handler
+        new_items = {mt: handler for mt in model_types}
+        self._handlers_by_model_type.update(new_items)
+        return handler
+
     def _get_handler(self, model):
         """
         Looks up, and if necessary instantiates, a StoreHandler instance
@@ -133,29 +157,25 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
         handler = None
         model_type = type(model)
 
-        # Special case: If the model is a Host, check for a module name
-        #               in its "source" attribute and try to import a
-        #               StoreHandler class from that module.
+        # Special case: If the model is a Host, check for a handler name
+        #               in its "source" attribute and use the definition
+        #               registered under that name.
         if model_type is Host:
-            module_name = getattr(model, 'source', '')
-            if module_name:
-                handler_type = import_plugin(
-                    module_name, 'commissaire.storage', StoreHandlerBase)
-                handler = self._extra_handlers.get(handler_type)
+            name = getattr(model, 'source', '').strip()
+            if name:
+                handler = self._handlers_by_name.get(name)
                 if handler is None:
                     # Let this raise a KeyError if the lookup fails.
-                    config = self.extra_configs[handler_type]
-                    handler = handler_type(config)
-                    self._extra_handlers[handler_type] = handler
+                    definition = self._definitions_by_name[name]
+                    handler = self._create_handler(definition)
 
         if handler is None:
-            handler = self._handlers.get(model_type)
+            handler = self._handlers_by_model_type.get(model_type)
 
         if handler is None:
             # Let this raise a KeyError if the registry lookup fails.
-            handler_type, config, model_types = self._registry[model_type]
-            handler = handler_type(config)
-            self._handlers.update({mt: handler for mt in model_types})
+            definition = self._definitions_by_model_type[model_type]
+            handler = self._create_handler(definition)
 
         return handler
 

@@ -86,10 +86,10 @@ class StorageService(CommissaireService):
 
         # Import the handler class.
         try:
-            module_name = config.pop('name')
+            module_name = config.pop('type')
         except KeyError:
             raise ConfigurationError(
-                'Store handler configuration missing "name" key: '
+                'Store handler configuration missing "type" key: '
                 '{}'.format(config))
         handler_type = import_plugin(
             module_name, 'commissaire.storage', StoreHandlerBase)
