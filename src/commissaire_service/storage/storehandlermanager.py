@@ -173,7 +173,8 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
         try:
             model_instance._validate()
         except ValidationError as ve:
-            self._logger.error(ve.args[0], ve.args[1])
+            self._logger.error(ve.args[0])
+            self._logger.error(ve.args[1])
             raise ve
         self._logger.debug('> SAVE {}'.format(model_instance))
         model_instance = handler._save(model_instance)
@@ -196,7 +197,8 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
         try:
             model_instance._validate()
         except ValidationError as ve:
-            self._logger.error(ve.args[0], ve.args[1])
+            self._logger.error(ve.args[0])
+            self._logger.error(ve.args[1])
             raise ve
         self._logger.debug('< GET {}'.format(model_instance))
         return model_instance
