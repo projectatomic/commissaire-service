@@ -1,3 +1,28 @@
+# commissaire-service v0.0.3
+```
+* 3110c18: storage: Clarify docs for list() method.
+* c167388: storage: Give storage handlers a unique name.
+* 62d3441: storage: Fix logging of ValidationErrors.
+* 79e09c3: storage: Remove 'cluster_type' arg from list_container_managers().
+* 44203f7: storage: Honor Host.source attribute.
+* b4f3be7: storage: Rework data structure for extra handlers.
+* 4ff49fb: storage: Remove StoreHandlerManager.get_logger().
+* 6893f06: storage: Remove StoreHandlerManager.clone().
+* 815339c: Use new host status constants.
+* 254c321: investigator: inactive is no longer a valid status
+* 8c88ede: transport: Log when subprocess completes.
+* 91b702b: investigator: Fix handling of hosts with no cluster.
+* 542d8a6: transport: Remove unused 'cluster' arg from bootstrap().
+* 8eaedc4: service: get_oscmd now raises OSCmdError
+* 4d5c876: service: --bus-uri no longer has a default
+* 2dcd844: storage: Bypass code coverage requirement.
+* c9e0c1b: storage: Accept list of homogeneous models.
+* 546960d: clusterexec: Force serial work
+* 8498841: containermgr: Cleanups around ContainerManagerError.
+* 2dece68: service: Handle any RemoteProcedureCallError subclass.
+* b284e3c: Post-release version bump.
+```
+
 # commissaire-service v0.0.2
 ```
 * 7594271: containermgr: Add remove_all_nodes() method.
