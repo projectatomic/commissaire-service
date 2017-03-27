@@ -238,8 +238,9 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
         """
         Lists data at a location in a store and returns back model instances.
 
-        :param model_instance: Model instance to search for and list
-        :type model_instance: commissaire.model.Model
+        :param model_instance: List model instance indicating the data type
+                               to search for
+        :type model_instance: commissaire.model.ListModel
         :returns: A list of models
         :rtype: list
         """
