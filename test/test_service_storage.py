@@ -18,8 +18,22 @@ Tests for commissaire_service.storage.StorageService.
 
 from . import TestCase, mock
 
-from commissaire.models import Host
+import json
+
+from commissaire import models
+from commissaire.storage import StoreHandlerBase
+from commissaire.util.config import ConfigurationError
 from commissaire_service.storage import StorageService
+
+
+class StoreHandlerTest(StoreHandlerBase):
+    """
+    Minimal store handler implementation to aid in unit testing.
+    """
+
+    @classmethod
+    def check_config(cls, config):
+        return True
 
 
 class TestStorageService(TestCase):
@@ -43,71 +57,290 @@ class TestStorageService(TestCase):
         self._producer = patcher.start()
         self.addCleanup(patcher.stop)
 
+        patcher = mock.patch('commissaire_service.storage.import_plugin')
+        patcher.start().return_value = StoreHandlerTest
+        self.addCleanup(patcher.stop)
+
+        # This gets the StorageService created without registering any
+        # store handlers.
         with mock.patch(
-                'commissaire.util.config.read_config_file') as rcf, \
+                'commissaire_service.service.read_config_file') as rcf, \
             mock.patch(
                 'commissaire_service.storage.'
-                'StorageService.register_store_handler') as rsh:
+                'StorageService._register_store_handler') as rsh:
             rcf.return_value = {}
             self.service_instance = StorageService(
                 'commissaire',
-                'redis://127.0.0.1:6379/'
-            )
+                'redis://127.0.0.1:6379/')
 
-        self.service_instance._manager = mock.MagicMock()
-        self.service_instance._manager.get.side_effect = lambda model: model
-        self.service_instance._manager.save.side_effect = lambda model: model
+    def test_register_store_handler(self):
+        """
+        Verify StorageService._register_store_handler works as intended
+        """
+        # Shorter names for data structures.
+        definitions_by_name = \
+            self.service_instance._definitions_by_name
+        definitions_by_model_type = \
+            self.service_instance._definitions_by_model_type
 
-    def test_on_get_with_dict(self):
+        # Valid registration, implicit name.
+        implicit_name = __name__
+        model_type = models.Host
+        config = {
+            'type': 'test',
+            'models': [model_type.__name__]
+        }
+        self.service_instance._register_store_handler(config)
+        self.assertEqual(config.get('name'), implicit_name)
+        self.assertIn(implicit_name, definitions_by_name)
+        self.assertIn(model_type, definitions_by_model_type)
+
+        # Valid registration, explicit name.
+        explicit_name = 'handle_me_harder'
+        model_type = models.Cluster
+        config = {
+            'type': 'test',
+            'name': explicit_name,
+            'models': [model_type.__name__]
+        }
+        self.service_instance._register_store_handler(config)
+        self.assertEqual(config.get('name'), explicit_name)
+        self.assertIn(explicit_name, definitions_by_name)
+        self.assertIn(model_type, definitions_by_model_type)
+
+        # Valid registration, implicit name, ID collision.
+        implicit_name = __name__ + '-1'
+        model_type = models.Network
+        config = {
+            'type': 'test',
+            'name': implicit_name,
+            'models': [model_type.__name__]
+        }
+        self.service_instance._register_store_handler(config)
+        self.assertEqual(config.get('name'), implicit_name)
+        self.assertIn(implicit_name, definitions_by_name)
+        self.assertIn(model_type, definitions_by_model_type)
+
+        # Valid registration, implicit name, multiple model types.
+        implicit_name = __name__ + '-2'
+        model_types = (
+            models.ClusterDeploy,
+            models.ClusterRestart,
+            models.ClusterUpgrade
+        )
+        config = {
+            'type': 'test',
+            'name': implicit_name,
+            'models': [mt.__name__ for mt in model_types]
+        }
+        self.service_instance._register_store_handler(config)
+        self.assertEqual(config.get('name'), implicit_name)
+        self.assertIn(implicit_name, definitions_by_name)
+        for mt in model_types:
+            self.assertIn(mt, definitions_by_model_type)
+
+        # Invalid registration, explicit name, name collision.
+        model_type = models.ContainerManagerConfig
+        config = {
+            'type': 'test',
+            'name': 'handle_me_harder',
+            'models': [model_type.__name__]
+        }
+        self.assertRaises(
+            ConfigurationError,
+            self.service_instance._register_store_handler,
+            config)
+
+        # Invalid registration, implicit name, model type collision.
+        model_type = models.Host
+        config = {
+            'type': 'test',
+            'models': [model_type.__name__]
+        }
+        self.assertRaises(
+            ConfigurationError,
+            self.service_instance._register_store_handler,
+            config)
+
+        # Verify StoreHandlerManager state.
+        self.assertEquals(len(definitions_by_name), 4)
+        self.assertEquals(len(definitions_by_model_type), 6)
+        expect_handlers = [
+            (StoreHandlerTest,
+                {'name': __name__},
+                set([models.Host])),
+            (StoreHandlerTest,
+                {'name': 'handle_me_harder'},
+                set([models.Cluster])),
+            (StoreHandlerTest,
+                {'name': __name__ + '-1'},
+                set([models.Network])),
+            (StoreHandlerTest,
+                {'name': __name__ + '-2'},
+                set([models.ClusterDeploy,
+                     models.ClusterRestart,
+                     models.ClusterUpgrade]))
+        ]
+        # Note, actual_handlers is unordered.
+        actual_handlers = list(definitions_by_name.values())
+        self.assertEquals(len(actual_handlers), 4)
+        for handler in expect_handlers:
+            self.assertIn(handler, actual_handlers)
+
+    def test_get_handler(self):
+        """
+        Verify StorageService._get_handler() works as intended
+        """
+        default_config = {
+            'type': 'test',
+            'name': 'default',
+            'models': ['Host']
+        }
+        self.service_instance._register_store_handler(default_config)
+        alternate_config = {
+            'type': 'test',
+            'name': 'alternate',
+            'models': []
+        }
+        self.service_instance._register_store_handler(alternate_config)
+
+        # Shorter names for data structures.
+        handlers_by_name = \
+            self.service_instance._handlers_by_name
+        handlers_by_model_type = \
+            self.service_instance._handlers_by_model_type
+
+        self.assertEquals(len(handlers_by_name), 0)
+        self.assertEquals(len(handlers_by_model_type), 0)
+
+        # Select default handler for models.Host with no source value.
+        model = models.Host.new(address='127.0.0.1')
+        handler = self.service_instance._get_handler(model)
+        default_handler = handlers_by_name.get('default')
+        self.assertIsInstance(handler, StoreHandlerTest)
+        self.assertIs(handler, default_handler)
+
+        # Select alternate handler for models.Host with a source value.
+        model = models.Host.new(address='127.0.0.1', source='alternate')
+        handler = self.service_instance._get_handler(model)
+        alternate_handler = handlers_by_name.get('alternate')
+        self.assertIsInstance(handler, StoreHandlerTest)
+        self.assertIs(handler, alternate_handler)
+
+        # Verify KeyError for unsupported model type.
+        model = models.Cluster.new(name='honeynut')
+        self.assertRaises(
+            KeyError,
+            self.service_instance._get_handler,
+            model)
+
+        # Verify KeyError for models.Host with invalid source value.
+        model = models.Host.new(address='127.0.0.1', source='bogus')
+        self.assertRaises(
+            KeyError,
+            self.service_instance._get_handler,
+            model)
+
+    @mock.patch('commissaire_service.storage.StorageService._get_handler')
+    def test_on_get_with_dict(self, get_handler):
         """
         Verify StorageService.on_get handles dictionary input
         """
+        handler = mock.MagicMock()
+        get_handler.return_value = handler
+
         address = '127.0.0.1'
         type_name = 'Host'
         json_data = {'address': address}
 
+        host = models.Host.new(**json_data)
+        handler._get.return_value = host
+
         message = mock.MagicMock()
         result = self.service_instance.on_get(message, type_name, json_data)
 
-        self.assertEquals(self.service_instance._manager.get.call_count, 1)
-        self.assertEquals(result, Host.new(address=address).to_dict())
+        self.assertEquals(handler._get.call_count, 1)
+        self.assertEquals(result, host.to_dict())
 
-    def test_on_get_with_str(self):
+    @mock.patch('commissaire_service.storage.StorageService._get_handler')
+    def test_on_get_with_str(self, get_handler):
         """
         Verify StorageService.on_get handles string input
         """
+        handler = mock.MagicMock()
+        get_handler.return_value = handler
+
         address = '127.0.0.1'
         type_name = 'Host'
         json_data = '{{"address": "{}"}}'.format(address)
 
+        host = models.Host.new(**json.loads(json_data))
+        handler._get.return_value = host
+
         message = mock.MagicMock()
         result = self.service_instance.on_get(message, type_name, json_data)
 
-        self.assertEquals(self.service_instance._manager.get.call_count, 1)
-        self.assertEquals(result, Host.new(address=address).to_dict())
+        self.assertEquals(handler._get.call_count, 1)
+        self.assertEquals(result, host.to_dict())
 
-    def test_on_get_with_list(self):
+    @mock.patch('commissaire_service.storage.StorageService._get_handler')
+    def test_on_get_with_invalid_data(self, get_handler):
+        """
+        Verify StorageService.on_get rejects invalid stored data
+        """
+        handler = mock.MagicMock()
+        get_handler.return_value = handler
+
+        address = '127.0.0.1'
+        type_name = 'Host'
+        json_data = {'address': address}
+
+        host = models.Host.new(**json_data)
+        host.address = None  # wrong type
+        handler._get.return_value = host
+
+        message = mock.MagicMock()
+        self.assertRaises(
+            models.ValidationError,
+            self.service_instance.on_get,
+            message, type_name, json_data)
+
+        # The output model is validated after calling handler._get().
+        self.assertEquals(handler._get.call_count, 1)
+
+    @mock.patch('commissaire_service.storage.StorageService._get_handler')
+    def test_on_get_with_list(self, get_handler):
         """
         Verify StorageService.on_get handles list input
         """
+        handler = mock.MagicMock()
+        get_handler.return_value = handler
+
         address1 = '192.168.1.1'
         address2 = '192.168.1.2'
         type_name = 'Host'
         json_data = [{'address': address1}, {'address': address2}]
+
+        hosts = [models.Host.new(**x) for x in json_data]
+        handler._get.side_effect = hosts
 
         message = mock.MagicMock()
         result = self.service_instance.on_get(message, type_name, json_data)
 
         self.assertIsInstance(result, list)
         self.assertEquals(len(result), 2)
-        self.assertEquals(self.service_instance._manager.get.call_count, 2)
-        self.assertEquals(result[0], Host.new(address=address1).to_dict())
-        self.assertEquals(result[1], Host.new(address=address2).to_dict())
+        self.assertEquals(handler._get.call_count, 2)
+        self.assertEquals(result[0], hosts[0].to_dict())
+        self.assertEquals(result[1], hosts[1].to_dict())
 
-    def test_on_get_with_invalid_list(self):
+    @mock.patch('commissaire_service.storage.StorageService._get_handler')
+    def test_on_get_with_invalid_list(self, get_handler):
         """
         Verify StorageService.on_get handles invalid list input
         """
+        handler = mock.MagicMock()
+        get_handler.return_value = handler
+
         type_name = 'Host'
 
         # 1st item valid, 2nd item invalid
@@ -118,59 +351,105 @@ class TestStorageService(TestCase):
             TypeError, self.service_instance.on_get,
             message, type_name, json_data)
 
-        # Even though 1st item is valid, manager.get() should not be called.
-        self.service_instance._manager.get.assert_not_called()
+        # Even though 1st item is valid, handler._get() should not be called.
+        handler._get.assert_not_called()
 
-    def test_on_save_with_dict(self):
+    @mock.patch('commissaire_service.storage.StorageService._get_handler')
+    def test_on_save_with_dict(self, get_handler):
         """
         Verify StorageService.on_save handles dictionary input
         """
+        handler = mock.MagicMock()
+        get_handler.return_value = handler
+
         address = '127.0.0.1'
         type_name = 'Host'
         json_data = {'address': address}
 
+        host = models.Host.new(**json_data)
+        handler._save.return_value = host
+
         message = mock.MagicMock()
         result = self.service_instance.on_save(message, type_name, json_data)
 
-        self.assertEquals(self.service_instance._manager.save.call_count, 1)
-        self.assertEquals(result, Host.new(address=address).to_dict())
+        self.assertEquals(handler._save.call_count, 1)
+        self.assertEquals(result, host.to_dict())
 
-    def test_on_save_with_str(self):
+    @mock.patch('commissaire_service.storage.StorageService._get_handler')
+    def test_on_save_with_str(self, get_handler):
         """
         Verify StorageService.on_save handles string input
         """
+        handler = mock.MagicMock()
+        get_handler.return_value = handler
+
         address = '127.0.0.1'
         type_name = 'Host'
         json_data = '{{"address": "{}"}}'.format(address)
 
+        host = models.Host.new(**json.loads(json_data))
+        handler._save.return_value = host
+
         message = mock.MagicMock()
         result = self.service_instance.on_save(message, type_name, json_data)
 
-        self.assertEquals(self.service_instance._manager.save.call_count, 1)
-        self.assertEquals(result, Host.new(address=address).to_dict())
+        self.assertEquals(handler._save.call_count, 1)
+        self.assertEquals(result, models.Host.new(address=address).to_dict())
 
-    def test_on_save_with_list(self):
+    @mock.patch('commissaire_service.storage.StorageService._get_handler')
+    def test_on_save_with_invalid_data(self, get_handler):
+        """
+        Verify StorageService.on_save rejects invalid input data
+        """
+        handler = mock.MagicMock()
+        get_handler.return_value = handler
+
+        address = None  # wrong type
+        type_name = 'Host'
+        json_data = {'address': address}
+
+        message = mock.MagicMock()
+        self.assertRaises(
+            models.ValidationError,
+            self.service_instance.on_save,
+            message, type_name, json_data)
+
+        # The input model is validated before calling handler._save().
+        handler._save.assert_not_called()
+
+    @mock.patch('commissaire_service.storage.StorageService._get_handler')
+    def test_on_save_with_list(self, get_handler):
         """
         Verify StorageService.on_save handles list input
         """
+        handler = mock.MagicMock()
+        get_handler.return_value = handler
+
         address1 = '192.168.1.1'
         address2 = '192.168.1.2'
         type_name = 'Host'
         json_data = [{'address': address1}, {'address': address2}]
+
+        hosts = [models.Host.new(**x) for x in json_data]
+        handler._save.side_effect = hosts
 
         message = mock.MagicMock()
         result = self.service_instance.on_save(message, type_name, json_data)
 
         self.assertIsInstance(result, list)
         self.assertEquals(len(result), 2)
-        self.assertEquals(self.service_instance._manager.save.call_count, 2)
-        self.assertEquals(result[0], Host.new(address=address1).to_dict())
-        self.assertEquals(result[1], Host.new(address=address2).to_dict())
+        self.assertEquals(handler._save.call_count, 2)
+        self.assertEquals(result[0], hosts[0].to_dict())
+        self.assertEquals(result[1], hosts[1].to_dict())
 
-    def test_on_save_with_invalid_list(self):
+    @mock.patch('commissaire_service.storage.StorageService._get_handler')
+    def test_on_save_with_invalid_list(self, get_handler):
         """
         Verify StorageService.on_save handles invalid list input
         """
+        handler = mock.MagicMock()
+        get_handler.return_value = handler
+
         type_name = 'Host'
 
         # 1st item valid, 2nd item invalid
@@ -181,13 +460,17 @@ class TestStorageService(TestCase):
             TypeError, self.service_instance.on_save,
             message, type_name, json_data)
 
-        # Even though 1st item is valid, manager.save() should not be called.
-        self.service_instance._manager.save.assert_not_called()
+        # Even though 1st item is valid, handler._save() should not be called.
+        handler._save.assert_not_called()
 
-    def test_on_delete_with_dict(self):
+    @mock.patch('commissaire_service.storage.StorageService._get_handler')
+    def test_on_delete_with_dict(self, get_handler):
         """
         Verify StorageService.on_delete handles dictionary input
         """
+        handler = mock.MagicMock()
+        get_handler.return_value = handler
+
         address = '127.0.0.1'
         type_name = 'Host'
         json_data = {'address': address}
@@ -195,12 +478,16 @@ class TestStorageService(TestCase):
         message = mock.MagicMock()
         self.service_instance.on_delete(message, type_name, json_data)
 
-        self.assertEquals(self.service_instance._manager.delete.call_count, 1)
+        self.assertEquals(handler._delete.call_count, 1)
 
-    def test_on_delete_with_str(self):
+    @mock.patch('commissaire_service.storage.StorageService._get_handler')
+    def test_on_delete_with_str(self, get_handler):
         """
         Verify StorageService.on_delete handles string input
         """
+        handler = mock.MagicMock()
+        get_handler.return_value = handler
+
         address = '127.0.0.1'
         type_name = 'Host'
         json_data = '{{"address": "{}"}}'.format(address)
@@ -208,12 +495,16 @@ class TestStorageService(TestCase):
         message = mock.MagicMock()
         self.service_instance.on_delete(message, type_name, json_data)
 
-        self.assertEquals(self.service_instance._manager.delete.call_count, 1)
+        self.assertEquals(handler._delete.call_count, 1)
 
-    def test_on_delete_with_list(self):
+    @mock.patch('commissaire_service.storage.StorageService._get_handler')
+    def test_on_delete_with_list(self, get_handler):
         """
         Verify StorageService.on_delete handles list input
         """
+        handler = mock.MagicMock()
+        get_handler.return_value = handler
+
         address1 = '192.168.1.1'
         address2 = '192.168.1.2'
         type_name = 'Host'
@@ -222,12 +513,16 @@ class TestStorageService(TestCase):
         message = mock.MagicMock()
         self.service_instance.on_delete(message, type_name, json_data)
 
-        self.assertEquals(self.service_instance._manager.delete.call_count, 2)
+        self.assertEquals(handler._delete.call_count, 2)
 
-    def test_on_delete_with_invalid_list(self):
+    @mock.patch('commissaire_service.storage.StorageService._get_handler')
+    def test_on_delete_with_invalid_list(self, get_handler):
         """
         Verify StorageService.on_delete handles invalid list input
         """
+        handler = mock.MagicMock()
+        get_handler.return_value = handler
+
         type_name = 'Host'
 
         # 1st item valid, 2nd item invalid
@@ -238,5 +533,24 @@ class TestStorageService(TestCase):
             TypeError, self.service_instance.on_delete,
             message, type_name, json_data)
 
-        # Even though 1st item is valid, manager.delete() should not be called.
-        self.service_instance._manager.delete.assert_not_called()
+        # Even though 1st item is valid, handler._delete() should not be called.
+        handler._delete.assert_not_called()
+
+    @mock.patch('commissaire_service.storage.StorageService._get_handler')
+    def test_on_list(self, get_handler):
+        """
+        Verify StorageService.on_list works as intended
+        """
+        handler = mock.MagicMock()
+        get_handler.return_value = handler
+
+        host = models.Host.new(address='127.0.0.1')
+        handler._list.return_value = models.Hosts.new(hosts=[host])
+
+        message = mock.MagicMock()
+        self.service_instance.on_list(message, 'Hosts')
+
+        list_of_models = self.service_instance.on_list(message, 'Hosts')
+        self.assertIsInstance(list_of_models, list)
+        self.assertEquals(len(list_of_models), 1)
+        self.assertEquals(list_of_models[0], host.to_dict())
