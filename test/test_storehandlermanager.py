@@ -27,19 +27,10 @@ from commissaire.util.config import ConfigurationError
 from commissaire_service.storage import StoreHandlerManager
 
 
-class ContainerManagerTest(ContainerManagerBase):
-    """
-    Minimal container manager implementation to aid in unit testing.
-    """
-    pass
-
-
 class StoreHandlerTest(StoreHandlerBase):
     """
     Minimal store handler implementation to aid in unit testing.
     """
-
-    container_manager_class = ContainerManagerTest
 
     @classmethod
     def check_config(cls, config):
@@ -147,9 +138,6 @@ class TestStoreHandlerManager(TestCase):
         self.assertEquals(len(actual_handlers), 4)
         for handler in expect_handlers:
             self.assertIn(handler, actual_handlers)
-        container_managers = self.manager.list_container_managers()
-        self.assertEquals(len(container_managers), 1)
-        self.assertIsInstance(container_managers[0], ContainerManagerTest)
 
     def test_get_handler(self):
         """

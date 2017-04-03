@@ -49,8 +49,6 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
         # { model_type : handler_instance }
         self._handlers_by_model_type = {}
 
-        self._container_managers = []
-
     def register_store_handler(self, handler_type, config, *model_types):
         """
         Associates a StoreHandler subclass with one or more model types.
@@ -107,34 +105,6 @@ class StoreHandlerManager(object):  # pragma: no cover (temporary)
         :rtype: list
         """
         return list(self._definitions_by_name.values())
-
-    def list_container_managers(self):
-        """
-        Returns a list of container manager instances based on the
-        registered store handler types and associated configuration.
-
-        :returns: List of container managers
-        :rtype: list
-        """
-        if not self._container_managers:
-            # Instantiate all container managers.
-            for handler_type, config, _ in self.list_store_handlers():
-                container_manager_class = getattr(
-                    handler_type, 'container_manager_class')
-                if container_manager_class:
-                    # XXX Limit one container manager for now.
-                    if not self._container_managers:
-                        container_manager = container_manager_class(config)
-                        self._container_managers.append(container_manager)
-                    else:
-                        self._logger.warn(
-                            'A container manager is already established, '
-                            'skipping {} as configured for store handler '
-                            '"{}"'.format(
-                                container_manager_class.__name__,
-                                handler_type.__name__))
-
-        return self._container_managers
 
     def _create_handler(self, definition):
         """
