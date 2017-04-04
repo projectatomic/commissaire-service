@@ -19,7 +19,7 @@ import commissaire.constants as C
 
 from commissaire.models import Cluster, Host, Network
 from commissaire.storage.client import StorageClient
-from commissaire.util.config import ConfigurationError, read_config_file
+from commissaire.util.config import ConfigurationError
 from commissaire.util.date import formatted_dt
 from commissaire.util.ssh import TemporarySSHKey
 
@@ -33,6 +33,9 @@ class InvestigatorService(CommissaireService):
     """
     Investigates new hosts to retrieve and store facts.
     """
+
+    #: Default configuration file
+    _default_config_file = '/etc/commissaire/investigator.conf'
 
     def __init__(self, exchange_name, connection_url, config_file=None):
         """
@@ -49,11 +52,14 @@ class InvestigatorService(CommissaireService):
         queue_kwargs = [
             {'routing_key': 'jobs.investigate'}
         ]
-        super().__init__(exchange_name, connection_url, queue_kwargs)
-        self.storage = StorageClient(self)
 
-        # Apply any logging configuration for this service.
-        read_config_file(config_file, '/etc/commissaire/investigator.conf')
+        super().__init__(
+            exchange_name,
+            connection_url,
+            queue_kwargs,
+            config_files=config_file)
+
+        self.storage = StorageClient(self)
 
     def _get_etcd_config(self):
         """

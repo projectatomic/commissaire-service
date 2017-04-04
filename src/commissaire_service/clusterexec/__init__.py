@@ -19,7 +19,6 @@ from commissaire import constants as C
 from commissaire.models import (
     ClusterDeploy, ClusterUpgrade, ClusterRestart)
 from commissaire.storage.client import StorageClient
-from commissaire.util.config import read_config_file
 from commissaire.util.date import formatted_dt
 from commissaire.util.ssh import TemporarySSHKey
 
@@ -33,6 +32,9 @@ class ClusterExecService(CommissaireService):
     """
     Executes operations over a cluster by way of remote shell commands.
     """
+
+    #: Default configuration file
+    _default_config_file = '/etc/commissaire/clusterexec.conf'
 
     def __init__(self, exchange_name, connection_url, config_file=None):
         """
@@ -49,11 +51,14 @@ class ClusterExecService(CommissaireService):
         queue_kwargs = [
             {'routing_key': 'jobs.clusterexec.*'}
         ]
-        super().__init__(exchange_name, connection_url, queue_kwargs)
-        self.storage = StorageClient(self)
 
-        # Apply any logging configuration for this service.
-        read_config_file(config_file, '/etc/commissaire/clusterexec.conf')
+        super().__init__(
+            exchange_name,
+            connection_url,
+            queue_kwargs,
+            config_file=config_file)
+
+        self.storage = StorageClient(self)
 
     def _execute(self, message, model_instance, command_args,
                  finished_hosts_key):

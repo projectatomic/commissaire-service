@@ -24,7 +24,6 @@ from time import sleep
 from commissaire import constants as C
 from commissaire.models import WatcherRecord
 from commissaire.storage.client import StorageClient
-from commissaire.util.config import read_config_file
 from commissaire.util.date import formatted_dt
 from commissaire.util.ssh import TemporarySSHKey
 
@@ -37,6 +36,9 @@ class WatcherService(CommissaireService):
     """
     Periodically connects to hosts to check their status.
     """
+
+    #: Default configuration file
+    _default_config_file = '/etc/commissaire/watcher.conf'
 
     def __init__(self, exchange_name, connection_url, config_file=None):
         """
@@ -57,11 +59,14 @@ class WatcherService(CommissaireService):
         }]
         # Store the last address seen for backoff
         self.last_address = None
-        super().__init__(exchange_name, connection_url, queue_kwargs)
-        self.storage = StorageClient(self)
 
-        # Apply any logging configuration for this service.
-        read_config_file(config_file, '/etc/commissaire/watcher.conf')
+        super().__init__(
+            exchange_name,
+            connection_url,
+            queue_kwargs,
+            config_file=config_file)
+
+        self.storage = StorageClient(self)
 
     def on_message(self, body, message):
         """
