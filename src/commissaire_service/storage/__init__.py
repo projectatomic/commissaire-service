@@ -166,6 +166,7 @@ class StorageService(CommissaireService):
         """
         handler_type, config, model_types = definition
         handler = handler_type(config)
+        handler.notify.connect(self._exchange, self._channel)
         self._handlers_by_name[config['name']] = handler
         new_items = {mt: handler for mt in model_types}
         self._handlers_by_model_type.update(new_items)
