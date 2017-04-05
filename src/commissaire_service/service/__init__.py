@@ -182,7 +182,7 @@ class CommissaireService(ConsumerMixin, BusMixin):
             exchange_name = self._config_data.get('bus_exchange')
 
         self.connection = Connection(connection_url)
-        self._channel = self.connection.channel()
+        self._channel = self.connection.default_channel
         self._exchange = Exchange(
             exchange_name, type='topic').bind(self._channel)
         self._exchange.declare()

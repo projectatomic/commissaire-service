@@ -60,9 +60,9 @@ class TestCommissaireService(TestCase):
         """
         Verify CommissaireService initializes as expected.
         """
-        # We should have one channel requested
+        # We should be using the connection's default channel
         self.assertEquals(
-            1, self.service_instance.connection.channel.call_count)
+            0, self.service_instance.connection.channel.call_count)
         # The exchange should be declared
         self.assertEquals(
             1, self.service_instance._exchange.declare.call_count)
