@@ -57,7 +57,7 @@ class InvestigatorService(CommissaireService):
             exchange_name,
             connection_url,
             queue_kwargs,
-            config_files=config_file)
+            config_file=config_file)
 
         self.storage = StorageClient(self)
 
