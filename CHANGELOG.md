@@ -1,3 +1,10 @@
+# commissaire-service v0.0.4
+```
+* cabb32e: investigator: Fix typo.
+* 3c78f25: service: Added bus-uri and exchange-name to config files
+* 45845ce: Post-release version bump.
+```
+
 # commissaire-service v0.0.3
 ```
 * 3110c18: storage: Clarify docs for list() method.
