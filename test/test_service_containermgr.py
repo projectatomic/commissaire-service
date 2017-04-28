@@ -21,7 +21,8 @@ from . import TestCase, mock
 import commissaire.constants as C
 
 from commissaire.bus import ContainerManagerError
-from commissaire.models import ContainerManagerConfig, ContainerManagerConfigs
+from commissaire.containermgr import ContainerManagerBase
+from commissaire.storage import client
 from commissaire_service.containermgr import ContainerManagerService
 
 
@@ -61,49 +62,34 @@ class TestContainerManagerService(TestCase):
         self._exchange.stop()
         self._producer.stop()
 
-    def test_refresh_managers(self):
+    def test_config_notification(self):
         """
-        Verify ContainerManagerService.refresh_managers works correctly
+        Verify ContainerManagerService._config_notification works correctly
         """
-        configs = ContainerManagerConfigs.new()
-        self.service_instance.storage.list = mock.MagicMock()
-        self.service_instance.storage.list.return_value = configs
+        body = {
+            'class': 'ContainerManagerConfig',
+            'model': {
+                'name': 'test',
+                'type': C.CONTAINER_MANAGER_OPENSHIFT,
+                'options': {'server_url': 'http://127.0.0.1'}
+            }
+        }
+        message = mock.MagicMock()
 
-        # Create a container manager instance.
-        cmc = ContainerManagerConfig(
-            name='1st',
-            type=C.CONTAINER_MANAGER_OPENSHIFT,
-            options={'server_url': 'http://1.1.1.1'})
-        configs.container_managers.append(cmc)
-        self.service_instance.refresh_managers()
-        self.assertIn('1st', self.service_instance.managers)
-        self.assertEqual(len(self.service_instance.managers), 1)
+        body['event'] = client.NOTIFY_EVENT_CREATED
+        self.service_instance._config_notification(body, message)
+        model = self.service_instance.managers.get('test')
+        self.assertIsInstance(model, ContainerManagerBase)
 
-        cm_1st = self.service_instance.managers['1st']
+        body['event'] = client.NOTIFY_EVENT_DELETED
+        self.service_instance._config_notification(body, message)
+        self.assertNotIn('test', self.service_instance.managers)
 
-        # Create a 2nd container manager instance.
-        cmc = ContainerManagerConfig(
-            name='2nd',
-            type=C.CONTAINER_MANAGER_OPENSHIFT,
-            options={'server_url': 'http://2.2.2.2'})
-        configs.container_managers.append(cmc)
-        self.service_instance.refresh_managers()
-        self.assertIn('1st', self.service_instance.managers)
-        self.assertIn('2nd', self.service_instance.managers)
-        self.assertEqual(len(self.service_instance.managers), 2)
-
-        # Verify the 1st container manager instance was preserved.
-        self.assertIs(cm_1st, self.service_instance.managers['1st'])
-
-        # Remove the 2nd container manager instance.
-        del configs.container_managers[-1]
-        self.service_instance.refresh_managers()
-        self.assertIn('1st', self.service_instance.managers)
-        self.assertNotIn('2nd', self.service_instance.managers)
-        self.assertEqual(len(self.service_instance.managers), 1)
-
-        # Verify the 1st container manager instance was preserved.
-        self.assertIs(cm_1st, self.service_instance.managers['1st'])
+        # Events 'created' and 'changed' handled the same.
+        body['event'] = client.NOTIFY_EVENT_CHANGED
+        self.service_instance._config_notification(body, message)
+        model = self.service_instance.managers.get('test')
+        self.assertIsInstance(model, ContainerManagerBase)
 
     def test_on_node_registered(self):
         """
