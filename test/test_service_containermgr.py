@@ -85,8 +85,8 @@ class TestContainerManagerService(TestCase):
         self.service_instance._config_notification(body, message)
         self.assertNotIn('test', self.service_instance.managers)
 
-        # Events 'created' and 'changed' handled the same.
-        body['event'] = client.NOTIFY_EVENT_CHANGED
+        # Events 'created' and 'updated' handled the same.
+        body['event'] = client.NOTIFY_EVENT_UPDATED
         self.service_instance._config_notification(body, message)
         model = self.service_instance.managers.get('test')
         self.assertIsInstance(model, ContainerManagerBase)
