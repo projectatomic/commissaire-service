@@ -48,7 +48,7 @@ test_require = extract_requirements('test-requirements.txt')
 
 setup(
     name='commissaire_service',
-    version='0.0.5',
+    version='0.0.6',
     description='Commissaire Service Library',
     author=extract_names('CONTRIBUTORS'),
     maintainer=extract_names('MAINTAINERS'),
