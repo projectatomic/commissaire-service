@@ -1,3 +1,14 @@
+# commissaire-service v0.0.5
+```
+* a047b49: test: Fix typo in test_service_containermgr.py.
+* cd78d58: containermgr: Update container managers through notifications.
+* c2ccabf: storage: Enable notification messages in handlers.
+* 062dded: storage: Merge StoreHandlerManager into StorageService.
+* 6b93fba: storage: Remove unused StoreHandlerManager.list_container_managers().
+* aaa2d04: service: Use the connection's default channel.
+* 7a04211: Post-release version bump.
+```
+
 # commissaire-service v0.0.4
 ```
 * cabb32e: investigator: Fix typo.
