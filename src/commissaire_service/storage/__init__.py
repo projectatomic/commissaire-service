@@ -25,6 +25,8 @@ from commissaire.util.config import (ConfigurationError, import_plugin)
 from commissaire_service.service import (
     CommissaireService, add_service_arguments)
 
+from .custodia import CustodiaStoreHandler
+
 
 class StorageService(CommissaireService):
     """
@@ -80,6 +82,29 @@ class StorageService(CommissaireService):
                              if isinstance(v, type) and
                              issubclass(v, models.Model)}
 
+        # Prepare CustodiaStoreHandler configuration.
+        #
+        # Pick out all the 'custodia_*' items from the root-level JSON
+        # configuration and discard the prefix for the Custodia handler.
+        prefix = 'custodia_'
+        config = {k[len(prefix):]: v
+                  for k, v in self._config_data.items()
+                  if k.startswith(prefix)}
+
+        # Bind SecretModel types to the built-in CustodiaStoreHandler.
+        # Do this early in case user data tries to specify these types;
+        # would raise a ConfigurationError in _register_store_handler().
+        matched_types = set()
+        for mt in self._model_types.values():
+            if issubclass(mt, models.SecretModel):
+                matched_types.add(mt)
+        handler_type = CustodiaStoreHandler
+        config['name'] = handler_type.__module__
+        definition = (handler_type, config, matched_types)
+        self._definitions_by_name[config['name']] = definition
+        new_items = {mt: definition for mt in matched_types}
+        self._definitions_by_model_type.update(new_items)
+
         store_handlers = self._config_data.get('storage_handlers', [])
 
         # Configure store handlers from user data.
@@ -117,10 +142,13 @@ class StorageService(CommissaireService):
         handler_type = import_plugin(
             module_name, 'commissaire.storage', StoreHandlerBase)
 
-        # Match model types to type name patterns.
+        # Match (non-secret) model types to type name patterns.
         matched_types = set()
+        configurable_model_names = [
+            k for k, v in self._model_types.items()
+            if not issubclass(v, models.SecretModel)]
         for pattern in config.pop('models', ['*']):
-            matches = fnmatch.filter(self._model_types.keys(), pattern)
+            matches = fnmatch.filter(configurable_model_names, pattern)
             if not matches:
                 raise ConfigurationError(
                     'No match for model: {}'.format(pattern))

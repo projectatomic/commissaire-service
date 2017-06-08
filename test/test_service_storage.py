@@ -24,6 +24,12 @@ from commissaire import models
 from commissaire.storage import StoreHandlerBase
 from commissaire.util.config import ConfigurationError
 from commissaire_service.storage import StorageService
+from commissaire_service.storage.custodia import CustodiaStoreHandler
+
+
+SECRET_MODEL_TYPES = (
+    models.SecretModel,
+    models.HostCreds)
 
 
 class StoreHandlerTest(StoreHandlerBase):
@@ -82,6 +88,22 @@ class TestStorageService(TestCase):
             self.service_instance._definitions_by_name
         definitions_by_model_type = \
             self.service_instance._definitions_by_model_type
+
+        # Factor builtin definitions in our final checks.
+        builtin_by_name = len(definitions_by_name)
+        builtin_by_model_type = len(definitions_by_model_type)
+
+        # Verify SecretModel registrations are rejected.
+        for model_type in SECRET_MODEL_TYPES:
+            self.assertTrue(issubclass(model_type, models.SecretModel))
+            config = {
+                'type': 'test',
+                'models': [model_type.__name__]
+            }
+            self.assertRaises(
+                ConfigurationError,
+                self.service_instance._register_store_handler,
+                config)
 
         # Valid registration, implicit name.
         implicit_name = __name__
@@ -163,8 +185,12 @@ class TestStorageService(TestCase):
             config)
 
         # Verify StoreHandlerManager state.
-        self.assertEquals(len(definitions_by_name), 4)
-        self.assertEquals(len(definitions_by_model_type), 6)
+        self.assertEquals(
+            len(definitions_by_name),
+            4 + builtin_by_name)
+        self.assertEquals(
+            len(definitions_by_model_type),
+            6 + builtin_by_model_type)
         expect_handlers = [
             (StoreHandlerTest,
                 {'name': __name__},
@@ -183,9 +209,22 @@ class TestStorageService(TestCase):
         ]
         # Note, actual_handlers is unordered.
         actual_handlers = list(definitions_by_name.values())
-        self.assertEquals(len(actual_handlers), 4)
+        self.assertEquals(len(actual_handlers), 4 + builtin_by_name)
         for handler in expect_handlers:
             self.assertIn(handler, actual_handlers)
+
+    def test_register_store_handler_wildcards(self):
+        """
+        Verify wildcard patterns in "models" excludes SecretModels
+        """
+        config = {
+            'type': 'test',
+            'models': ['*']
+        }
+        # This would throw a ConfigurationError if SecretModel types
+        # WERE included, since the matched types would conflict with
+        # pre-registered SecretModel types.
+        self.service_instance._register_store_handler(config)
 
     def test_get_handler(self):
         """
@@ -240,6 +279,11 @@ class TestStorageService(TestCase):
             KeyError,
             self.service_instance._get_handler,
             model)
+
+        # Verify HostCreds instance returns CustodiaStoreHandler.
+        model = models.HostCreds.new(address='127.0.0.1')
+        handler = self.service_instance._get_handler(model)
+        self.assertIsInstance(handler, CustodiaStoreHandler)
 
     @mock.patch('commissaire_service.storage.StorageService._get_handler')
     def test_on_get_with_dict(self, get_handler):
