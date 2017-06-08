@@ -5,3 +5,4 @@ requests #license=ASLv2.0
 git+https://github.com/projectatomic/commissaire.git #license=GPLv3
 redis #license=MIT
 ansible>=2.2.1,<2.3 #license=GPLv3
+custodia #license=GPLv3+
