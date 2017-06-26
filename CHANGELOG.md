@@ -1,3 +1,18 @@
+# commissaire-service v
+Ignoring git+https://github.com/projectatomic/commissaire.git (-r requirements.txt (line 5))
+To install it run: pip install git+https://github.com/projectatomic/commissaire.git
+
+0.0.6
+```
+* 51d1925: storage: Add CustodiaStoreHandler.
+* c2cf399: Require custodia.
+* 356c384: docker: Add Dockerfile
+* 6c6bfd6: investigator: Update for secret models
+* d84b652: clusterexec: Update for secret models
+* 2ca7fdd: watcher: Update for secret models
+* 8940609: Post-release version bump.
+```
+
 # commissaire-service v0.0.5
 ```
 * a047b49: test: Fix typo in test_service_containermgr.py.
